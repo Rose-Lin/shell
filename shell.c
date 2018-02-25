@@ -1,5 +1,21 @@
+#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
+#include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <sys/mman.h>
+#include <semaphore.h>
+#include <fcntl.h>
 
+#include "dlist.h"
+#include "job_node.h"
+#include "shell.h"
+#include "tokenizer.h"
+
+#define FALSE 0
+#define TRUE 1
+#define BUF_SIZE 5
 
 // enums
 enum status{background, foreground, suspended};
@@ -21,6 +37,8 @@ dlist* background_joblist;
 dlist* suspended_joblist;
 
 // globals
+char special_delim[] = "&;";
+char all_delim[] = " &;";
 int multi_jobs = FALSE;
 int launch_bg = FALSE;
 pid_t cur_fg_job; // keeps track of the pid of the current foreground job
@@ -56,7 +74,13 @@ char* read_input() {
 
 int check_special_symbols(char* input) {
 	execjob_num = 0;
-	struct tokenizer* t = init_tokenizer(input, )
+	struct tokenizer* t = init_tokenizer(input, special_delim);
+	char* token = get_next_token(t);
+	while(token != NULL) {
+		execjob_num += 1;
+		token = get_next_token(t);
+	}
+	return execjob_num;
 }
 
 
