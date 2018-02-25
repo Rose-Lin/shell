@@ -6,11 +6,11 @@
 #include "dlist.h"
 #include "job_node.h"
 
-typedef struct dlist_record{
+typedef struct dlist{
   job_node* head;
   job_node* tail;
   int size;
-}dlist_record;
+}dlist;
 
 dlist dlist_new(){
   dlist l = malloc(sizeof(dlist_record));

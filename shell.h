@@ -3,9 +3,13 @@ void init_sems();  // checked
 
 void close_sems(); // checked
 
-void signal_hanlders();
+void init_joblists(); // checked
 
-void print_jobs();
+void free_joblists(); // checked
+
+void sigchild_handler();
+
+void print_jobs(dlist*);
 
 void test_job_list(); //testing joblist
 
