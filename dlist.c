@@ -75,7 +75,7 @@ void dlist_insert(dlist l, int index, job_node* n){
   job_node* h = l-> head;
   job_node* t = l-> tail;
   bool cut_in_line = false;
-  if(n > (l->size)/2){
+  if(index > (l->size)/2){
     for(int i=l->size; i>index; i--){
       t = t->prev;
       cut_in_line=true;
@@ -95,7 +95,7 @@ void dlist_insert(dlist l, int index, job_node* n){
         l->head = h->prev;
       }
     }else{
-      l->head = new_node(elt,l->head,NULL);
+      l->head = n;
       l->tail = l->head;
     }
   }
