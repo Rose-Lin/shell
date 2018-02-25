@@ -12,7 +12,7 @@ typedef struct job_node {
 } job_node;
 
 // create (i.e., malloc) a new node
-job_node* new_node(int index, job_node* next, job_node* prev);
+job_node* new_node(int index, int status, pid_t pid, pid_t gpid, char* original_input, job_node* next, job_node* prev);
 
 // insert a new node after the given one
 // Precondition: Supplied node is not NULL.

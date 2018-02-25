@@ -1,6 +1,7 @@
 #ifndef DLIST_H_
 #define DLIST_H_
 
+#include "job_node.h"
 // An abstract type for sequences
 typedef struct dlist_record* dlist;
 

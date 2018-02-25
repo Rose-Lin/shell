@@ -21,7 +21,6 @@ char* get_next_token(tokenizer* t) {
   return token;
 }
 
-
 /*
 char* get_next_token(tokenizer* t){
   char* substring = "";
