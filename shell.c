@@ -44,17 +44,20 @@ int job_num = 0;
 
 
 int main(int argc, char* argv[]){
+  int i = 0;
   void* shmem_all_joblist = create_shared_memory(sizeof(dlist*));
   void* shmem_background_joblist = create_shared_memory(sizeof(dlist*));
   void* shmem_suspended_joblist = create_shared_memory(sizeof(dlist*));
-  memcpy(shmem_all_joblist, (void*)all_joblist, sizeof(all_joblist));
-  memcpy(shmem_suspended_joblist,(void*)suspended_joblist,sizeof(suspended_joblist));
-  memcpy(shmem_background_joblist,(void*)background_joblist,sizeof(suspended_joblist));
+  memcpy(shmem_all_joblist, (void*)&all_joblist, sizeof(dlist*));
+  memcpy(shmem_suspended_joblist,(void*)&suspended_joblist,sizeof(dlist*));
+  memcpy(shmem_background_joblist,(void*)&background_joblist,sizeof(dlist*));
   size_t byte_num = 0;
   size_t buff_size = BUFF_SIZE;
   char* buffer = NULL;
-  byte_num = getline(&buffer, &buff_size, STDIN_FILENO);
-  // parse(&buffer, byte_num);
+  // byte_num = getline(&buffer, &buff_size, STDIN_FILENO);
+  char* delimiter = ";&";
+  tokenizer* t = init_tokenizer("se xdfnsfeos;skei&siefn;se", delimiter);
+  printf("%s\n", get_next_token(t));
 }
 
 // int parse(char* buffer, size_t byte_num){
