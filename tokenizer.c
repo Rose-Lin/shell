@@ -5,55 +5,28 @@
 
 char* delimiter = " ;&";
 
-tokenizer* init_tokenizer(char* str, char delim){
+tokenizer* init_tokenizer(char* str, char* delim){
   tokenizer* t = malloc(sizeof(tokenizer));
-  t->str = str;
+  t->str = malloc(sizeof(char) * strlen(str));
+  strncpy(t->str, str, strlen(str));
   t->pos = str;
-  t->delim = delim;
+  t->delim = malloc(sizeof(char) * strlen(delim));
+  strncpy(t->delim, delim, strlen(delim));
   return t;
 }
 
 char* get_next_token(tokenizer* t) {
-  char* token = strchr(t->pos, t->delim);
-  if(token != NULL) {
-    t->pos = token+1;  // points to the char after the current delim;
-  }
-  return token;
-}
 
-/*
-char* get_next_token(tokenizer* t){
-  char* substring = "";
-  for (int i=0, char* cur = t->pos; i<strlen(t->str); i++, cur = t->pos+i){
-    for (int j=0; j <strlen(delimiter); j++){
-      char ch = cur[0];
-      char d = delimiter[j];
-      if (ch == d){
-        if(strcmp(substring, "")==0){
-          return cur;
-        }else{
-          return substring;
-        }
+  if(t->pos == NULL) {return NULL; }
+  char* delim = t->delim;
+  int slen= strlen(t->pos);
+  for(int index = 0; index < slen; index++) {
+    for(int d = 0; d < strlen(delim); d ++) {
+      if(delim[d] == t->pos[index]) {
+        t->pos += (index + 1);
+        return t->pos + index;
       }
     }
-    strcat(substring, cur);
   }
   return NULL;
 }
-
-int main(int argc, char** argv){
-  char* buffer = "This is my shell c;ode.\n";
-  size_t num = 10;
-  size_t buffer_size;
-  // num = getline(&buffer, &buffer_size, 0);
-  // printf("%d\n", num);
-  if (num){
-    tokenizer* t = create_new_tokenizer(buffer);
-    char substring[600];
-    char* s = get_next_token(t, substring);
-    printf("%s\n",s);
-    // free(t);
-  }
-  return 0;
-}
-*/
