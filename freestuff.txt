@@ -3,3 +3,8 @@ all stuff to free:
 tokenizer:
 1. str in tokenizer;
 2. delim in tokenizer;
+3. check_special_symbosl allocated on tokenizer
+4. init jobslists, all three lisst need to be free
+5. readinput: created new jobnode   !!!!!! free jobnode need to free string inside
+6. PARSE_input allocate an array of tasks and strings
+7. dlist free needs to free the string inside of each jobnode
