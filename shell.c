@@ -1,20 +1,5 @@
-#include <sys/types.h>
-#include <termios.h>
-#include <unistd.h>
-#include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <sys/mman.h>
-#include <semaphore.h>
 
-#include "dlist.h"
-#include "job_node.h"
-#include "shell.h"
-#include "tokenizer.h"
-
-#define FALSE 1
-#define TRUE 0
-#define BUFF_SIZE 5
 
 // enums
 enum status{background, foreground, suspended};
@@ -24,7 +9,7 @@ enum flags{fg_to_bg,
 	   fg_to_kill,
 	   exit_shell,
 	   start_bg};
-
+enum special_inputs{delim_bg = '&', delim_mult = ';'};
 // semaphores
 sem_t* all;
 sem_t* bglist;
@@ -39,7 +24,40 @@ dlist* suspended_joblist;
 int multi_jobs = FALSE;
 int launch_bg = FALSE;
 pid_t cur_fg_job; // keeps track of the pid of the current foreground job
-int job_num = 0;
+int execjob_num = 0; // number of jobs to be executed during one input
+
+void int_sems() {
+	all = sem_open("all", O_CREAT, 0666, 1);
+	bglist = sem_open("bglist", O_CREAT, 0666, 1);
+	suslist = sem_open("suslist", O_CREAT, 0666, 1);
+}
+
+void close_sems() {
+	sem_unlink("all");
+	sem_close(all);
+	sem_unlink("bglist");
+	sem_close(bglist);
+	sem_unlink("suslist");
+	sem_close(suslist);
+}
+
+// read in the input
+char* read_input() {
+  size_t readn;
+  char* input = NULL;
+  printf("mysh > ");
+  if(getline(&input, &readn, stdin) < 0) {
+    printf("getline from stdin failed! \n");
+    free(input);
+    input = NULL;
+  }
+  return input;
+}
+
+int check_special_symbols(char* input) {
+	execjob_num = 0;
+	struct tokenizer* t = init_tokenizer(input, )
+}
 
 
 
