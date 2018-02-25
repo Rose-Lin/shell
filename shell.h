@@ -1,5 +1,7 @@
 
-void init_sems();
+void init_sems();  // check
+
+void close_sems(); // check
 
 void signal_hanlders();
 
@@ -7,7 +9,7 @@ void print_jobs();
 
 void* create_shared_memory(size_t size);
 
-char* read_input(); // simply read in input
+char* read_input(); // simply read in input   // check
 
 int check_special_symbols(char* input); // check for special characters
 
