@@ -1,4 +1,3 @@
-//Name : Jiayi Lin
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -46,7 +45,7 @@ void delete_node(job_node* n){
   free(n);
 }
 
-job_node* nth_node(job_node* head, int index){
+job_node* nth_job(job_node* head, int index){
   job_node* p = head;
   if(index ==length(head)){
     return NULL;
@@ -57,7 +56,7 @@ job_node* nth_node(job_node* head, int index){
   return p;
 }
 
-job_node* nth_node_prev(job_node* tail, int index){
+job_node* nth_job_prev(job_node* tail, int index){
   int length =0;
   job_node* t = tail;
   for(;t;length++, t = t->prev){
@@ -74,7 +73,7 @@ job_node* nth_node_prev(job_node* tail, int index){
   return t;
 }
 
-void free_dlist(job_node* head){
+void free_joblist(job_node* head){
   job_node* l = head;
   while(l){
     head = l;

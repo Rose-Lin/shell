@@ -1,8 +1,3 @@
-/* dlist_node.h
-
-   Prototypes for functions on a doubly-linked list
-*/
-
 #ifndef DLIST_NODE_H_
 #define DLIST_NODE_H_
 
@@ -34,16 +29,16 @@ void delete_node(job_node* n);
 // return a pointer to the indexth node in the list. If index is
 // the length of the list, this returns NULL, but does not error.
 // Precondition: the list has at least index number of nodes
-job_node* nth_node(job_node* head, int index);
+job_node* nth_job(job_node* head, int index);
 
 // return a pointer to the nth previous node in the list. (That is,
 // this uses `prev` pointers, not `next` pointers.) If index is
 // the length of the list, this returns NULL, but does not error.
 // Precondition: the list has at least index number of nodes
-job_node* nth_node_prev(job_node* tail, int index);
+job_node* nth_job_prev(job_node* tail, int index);
 
 // free an entire linked list. The list might be empty.
-void free_dlist(job_node* head);
+void free_joblist(job_node* head);
 
 // create a linked list that stores the same elements as the given array.
 // Postcondition: returns the head element

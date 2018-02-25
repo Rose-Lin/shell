@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include "dlist.h"
 #include "job_node.h"
 

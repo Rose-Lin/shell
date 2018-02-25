@@ -1,8 +1,3 @@
-/* dlist.h
-
-   Declarations for an abstract sequence type backed by a singly linked list.
-*/
-
 #ifndef DLIST_H_
 #define DLIST_H_
 
