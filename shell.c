@@ -37,6 +37,8 @@ dlist* background_joblist;
 dlist* suspended_joblist;
 
 // globals
+char special_delim[] = "&;";
+char all_delim[] = " &;";
 int multi_jobs = FALSE;
 int launch_bg = FALSE;
 pid_t cur_fg_job; // keeps track of the pid of the current foreground job
@@ -70,10 +72,18 @@ char* read_input() {
   return input;
 }
 
-// int check_special_symbols(char* input) {
-// 	execjob_num = 0;
-// 	tokenizer* t = init_tokenizer(input, )
-// }
+int check_special_symbols(char* input) {
+	execjob_num = 0;
+	struct tokenizer* t = init_tokenizer(input, special_delim);
+	char* token = get_next_token(t);
+	while(token != NULL) {
+		execjob_num += 1;
+		token = get_next_token(t);
+	}
+	return execjob_num;
+}
+
+
 
 int main(int argc, char* argv[]){
   int i = 0;

@@ -1,0 +1,5 @@
+all stuff to free:
+
+tokenizer:
+1. str in tokenizer;
+2. delim in tokenizer;
