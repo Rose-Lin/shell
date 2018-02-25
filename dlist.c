@@ -75,7 +75,7 @@ void dlist_insert(dlist l, int index, job_node* n){
   job_node* h = l-> head;
   job_node* t = l-> tail;
   bool cut_in_line = false;
-  if(n > (l->size)/2){
+  if(index > (l->size)/2){
     for(int i=l->size; i>index; i--){
       t = t->prev;
       cut_in_line=true;
@@ -95,7 +95,7 @@ void dlist_insert(dlist l, int index, job_node* n){
         l->head = h->prev;
       }
     }else{
-      l->head = new_node(elt,l->head,NULL);
+      l->head = n;
       l->tail = l->head;
     }
   }
@@ -104,12 +104,12 @@ void dlist_insert(dlist l, int index, job_node* n){
 
 job_node* dlist_get(dlist l, int index){
   job_node* t = l->tail;
-  if(n < (l->size)/2){
+  if(index < (l->size)/2){
     //traverse from head
-    return nth_node(l->head, index);
+    return nth_job(l->head, index);
   }else{
     //traverse from tail
-    return nth_node_prev(t, l->size-index-1);
+    return nth_job_prev(t, (l->size)-index-1);
   }
 }
 
@@ -128,14 +128,14 @@ job_node* dlist_get(dlist l, int index){
 void dlist_remove(dlist l, int n){
   int old = 0;
   if(n <= (l->size)/2){
-    delete_node(nth_node(l->head,n));
+    delete_node(nth_job(l->head,n));
   }else{
-    delete_node(nth_node_prev(l->head,l->size-n-1));
+    delete_node(nth_job_prev(l->head,(l->size)-n-1));
   }
   l->size--;
 }
 
 void dlist_free(dlist l){
-  free_dlist(l->head);
+  free_joblist(l->head);
   free(l);
 }

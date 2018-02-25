@@ -16,6 +16,7 @@ tokenizer* init_tokenizer(char* str, char* delim){
 }
 
 char* get_next_token(tokenizer* t) {
+
   if(t->pos == NULL) {return NULL; }
   char* delim = t->delim;
   int slen= strlen(t->pos);
