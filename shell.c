@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <semaphore.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 
@@ -127,6 +128,40 @@ int check_special_symbols(char* input) {
 	return execjob_num;
 }
 
+void test_job_list(){
+  dlist dl = dlist_new();
+  job_node* j1 = new_node(1, 0,0,0,"first job",NULL, NULL);
+  dlist_push_end(dl, j1);
+  job_node* j2 = new_node(2,0,0,0,"second job", NULL, NULL);
+  insert_after(j1, j2);
+  job_node* j3 = new_node(3,0,0,0,"thrid job", NULL, NULL);
+  insert_after(j2,j3);
+  job_node* j4 = new_node(4,0,0,0, "fourth job", NULL,NULL);
+  insert_after(j3, j4);
+  job_node* j5 = new_node(5,0,0,0, "5th job", NULL,NULL);
+  insert_after(j4, j5);
+  job_node* j12 = new_node(0,0,0,0,"after 1st before 2nd", NULL,NULL);
+  job_node* h = j1;
+  dlist_push_end(dl, j2);
+  printf("%s\n",dl->tail->original_input );
+  // while (h){
+    // dlist_push_end(dl, h);
+    // printf(h->original_input);
+    // printf("\n" );
+    // h = h->next;
+  // }
+  printf("%d\n",dlist_size(dl) );
+  dlist_insert(dl,1, j12);
+  dlist_remove(dl, 2);
+  h = j1;
+  // while (h){
+  //   printf(h->original_input);
+  //   printf("\n" );
+  //   h = h->next;
+  // }
+  delete_node(j1);
+}
+
 int parse_input(char* input) {
 	tasks = malloc(sizeof(char*) * BUFSIZE);
 	char* cur = input;
@@ -155,8 +190,6 @@ int parse_input(char* input) {
 	}
 }
 
-
-
 int main(int argc, char* argv[]){
   int i = 0;
   void* shmem_all_joblist = create_shared_memory(sizeof(dlist*));
@@ -172,6 +205,7 @@ int main(int argc, char* argv[]){
   char* delimiter = ";& ";
   tokenizer* t = init_tokenizer("se xdfnsfeos;skei&siefn;se", delimiter);
   printf("%s\n", get_next_token(t));
+  test_job_list();
 }
 
 void* create_shared_memory(size_t size){

@@ -1,7 +1,7 @@
 all: shell
 
 shell: shell.o dlist.o job_node.o tokenizer.o
-	gcc -o shell shell.o dlist.o job_node.o tokenizer.o
+	gcc -o shell shell.o dlist.o job_node.o tokenizer.o -lpthread -lrt
 
 shell.o: shell.c shell.h dlist.h job_node.h tokenizer.h
 	gcc -c shell.c

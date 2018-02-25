@@ -1,5 +1,11 @@
 all stuff to free:
 
+job_node
+
+dlist:
+1. job_node list
+2. head
+
 tokenizer:
 1. str in tokenizer;
 2. delim in tokenizer;

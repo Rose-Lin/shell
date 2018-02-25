@@ -8,3 +8,5 @@ typedef struct tokenizer{
 tokenizer* init_tokenizer(char* str, char* delim);
 
 char* get_next_token(tokenizer* t);
+
+void free_tokenizer(tokenizer* t);
