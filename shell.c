@@ -159,20 +159,10 @@ int main(int argc, char* argv[]){
   size_t buff_size = BUFF_SIZE;
   char* buffer = NULL;
   // byte_num = getline(&buffer, &buff_size, STDIN_FILENO);
-  char* delimiter = ";&";
+  char* delimiter = ";& ";
   tokenizer* t = init_tokenizer("se xdfnsfeos;skei&siefn;se", delimiter);
   printf("%s\n", get_next_token(t));
 }
-
-// int parse(char* buffer, size_t byte_num){
-//   int i = 0;
-//   if(! byte_num){
-//     return 0;
-//   }
-//   if(strcmp(buffer, "") == 0){
-//     return 0;
-//   }
-// }
 
 void* create_shared_memory(size_t size){
   int protection = PROT_READ | PROT_WRITE;
