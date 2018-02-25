@@ -78,6 +78,11 @@ void free_joblists() {
 
 void print_jobs(dlist* jobs) {
 	job_node* top = jobs->head;
+	if(jobs == NULL) {
+		printf("No jobs available.\n");
+	} else if (jobs->head == NULL) {
+		printf("No jobs yet. \n")
+	}
 	int index = 1;
 	while(top != NULL) {
 		printf("%d. %s \n", index, top->original_input);
@@ -85,6 +90,11 @@ void print_jobs(dlist* jobs) {
 		index ++;
 	}
 }
+
+void sigchild_handler() {
+
+}
+
 
 // read in the input and add one jobnode(with original input)
 char* read_input() {
