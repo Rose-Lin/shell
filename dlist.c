@@ -15,7 +15,7 @@ typedef struct dlist_record{
 dlist dlist_new(){
   dlist l = malloc(sizeof(dlist_record));
   l->head = NULL;
-  l->tail = l->head;
+  l->tail = NULL;
   l->size =0;
   return l;
 }
@@ -49,9 +49,11 @@ int dlist_size(dlist l){
 
 void dlist_push_end(dlist l, job_node* n){
   if (l->tail){
+    printf("%s\n", "----");
     insert_after(l->tail, n);
     l->tail = l->tail->next;
   }else{
+    printf("%s\n", "----");
     l->head = n;
     l->tail = n;
   }
@@ -109,7 +111,7 @@ job_node* dlist_get(dlist l, int index){
     return nth_job(l->head, index);
   }else{
     //traverse from tail
-    return nth_job_prev(t, (l->size)-index-1);
+    return nth_job_prev(t, l->size-index-1);
   }
 }
 
@@ -130,7 +132,7 @@ void dlist_remove(dlist l, int n){
   if(n <= (l->size)/2){
     delete_node(nth_job(l->head,n));
   }else{
-    delete_node(nth_job_prev(l->head,(l->size)-n-1));
+    delete_node(nth_job_prev(l->head,l->size-n-1));
   }
   l->size--;
 }

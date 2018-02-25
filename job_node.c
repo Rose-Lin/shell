@@ -77,6 +77,7 @@ void free_joblist(job_node* head){
   job_node* l = head;
   while(l){
     head = l;
+    free(l->original_input);
     l = l->next;
     free(head);
   }

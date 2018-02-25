@@ -7,6 +7,8 @@ void signal_hanlders();
 
 void print_jobs();
 
+void test_job_list(); //testing joblist
+
 void* create_shared_memory(size_t size);
 
 char* read_input(); // simply read in input   // checked

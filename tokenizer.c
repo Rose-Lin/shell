@@ -30,3 +30,9 @@ char* get_next_token(tokenizer* t) {
   }
   return NULL;
 }
+
+void free_tokenizer(tokenizer* t){
+  free(t->str);
+  free(t->delim);
+  free(t);
+}
