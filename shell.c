@@ -1,4 +1,4 @@
-#include <sys/types>
+#include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
@@ -9,24 +9,36 @@
 #include "shell.h"
 #include "tokenizer.h"
 
-#define SUCCESS 1
-#define FAIL 0
+#define FALSE 1
+#define TRUE 0
 #define BUFF_SIZE 5
 
+// enums
 enum status{background, foreground, suspended};
-enum flags{foreground_to_background,
-  suspended_to_background,
-  background_to_foreground,
-  foreground_to_kill,
-  exit_shell, shart_background};
+enum flags{fg_to_bg,
+	   sus_to_bg,
+	   bg_to_fg,
+	   fg_to_kill,
+	   exit_shell,
+	   start_bg};
 
+// semaphores
 sem_t* all;
-sem_t* backgroundlist;
-sem_t* suspendedlist;
+sem_t* bglist;
+sem_t* suslist;
 
+// job lists
 dlist* all_joblist;
 dlist* background_joblist;
 dlist* suspended_joblist;
+
+// globals
+int multi_jobs = FALSE;
+int launch_bg = FALSE;
+pid_t cur_fg_job; // keeps track of the pid of the current foreground job
+int job_num = 0;
+
+
 
 int main(int argc, char* argv[]){
   void* shmem_all_joblist = create_shared_memory(sizeof(dlist*));
