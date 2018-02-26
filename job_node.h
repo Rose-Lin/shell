@@ -7,7 +7,7 @@ typedef struct job_node {
   int status; // the status of the job: fg/bg/suspended
   pid_t pid;  //pid of the job
   pid_t gpid;  //gpid of the job
-  struct termios terminal;
+  struct termios jmode;
   char* original_input; //input from command line
   struct job_node* next; // pointer to next node
   struct job_node* prev; // pointer to previous node
