@@ -20,7 +20,7 @@ char* get_next_token(tokenizer* t) {
   int slen= strlen(t->pos);
   for(int index = 0; index < slen; index++) {
     for(int d = 0; d < strlen(delim); d ++) {
-      printf("testing delimiter %c and current pos %s\n", delim[d], (t->pos + index));
+      //printf("testing delimiter %c and current pos %s\n", delim[d], (t->pos + index));
       if(delim[d] == t->pos[index]) {
         char* result = t->pos + index;
         t->pos += (index + 1);

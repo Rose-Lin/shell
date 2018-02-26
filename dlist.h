@@ -65,6 +65,12 @@ job_node* dlist_get(dlist l, int index);
 // postcondition: returns the removed element
 void dlist_remove(dlist l, int n);
 
+//remove the jobnode according to pid from the dlist
+void dlist_remove_bypid(dlist l, pid_t pid);
+
+//return the job_node found by pid
+job_node* dlist_get_bypid(dlist l, pid_t pid);
+
 // frees an dlist. Takes O(size(l)) steps.
 void dlist_free(dlist l);
 

@@ -49,6 +49,19 @@ void delete_node(job_node* n){
   free(n);
 }
 
+job_node* get_jobnode_bypid(job_node* head, pid_t pid){
+  job_node* p = head;
+  if (p){
+    while (p){
+      if (p->pid == pid){
+        return p;
+      }
+      p = p->next;
+    }
+  }
+  return NULL;
+}
+
 job_node* nth_job(job_node* head, int index){
   job_node* p = head;
   if(index ==length(head)){
