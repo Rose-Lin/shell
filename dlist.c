@@ -47,6 +47,16 @@ int dlist_size(dlist l){
 //   return(l->head->data);
 // }
 
+
+job_node* get_head(dlist dl) {
+  return dl->head;
+}
+
+job_node* get_tail(dlist dl) {
+  return dl->tail;
+}
+
+
 void dlist_push_end(dlist l, job_node* n){
   if (l->tail){
     printf("%s\n", "----");

@@ -60,17 +60,14 @@ int mysh_fd = STDIN_FILENO;
 
 void int_sems() {
 	all = sem_open("all", O_CREAT, 0666, 1);
-	bglist = sem_open("bglist", O_CREAT, 0666, 1);
-	suslist = sem_open("suslist", O_CREAT, 0666, 1);
+	job = sem_open("job", O_CREAT, 0666, 1);
 }
 
 void close_sems() {
 	sem_unlink("all");
 	sem_close(all);
-	sem_unlink("bglist");
-	sem_close(bglist);
-	sem_unlink("suslist");
-	sem_close(suslist);
+	sem_unlink("job");
+	sem_close(job);
 }
 
 void init_joblists() {
