@@ -80,6 +80,67 @@ void free_joblists() {
 	dlist_free(all_joblist);
 }
 
+void sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
+	pid_t childpid = sg->si_pid;
+	int status = sg->si_code;
+	sigset_t sset;
+	sigaddset(&sset, SIGCHLD);
+
+	if(status == CLD_EXITED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		// remve the kid form jobs
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+
+	} else if (status == CLD_KILLED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		// remve the kid form jobs
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+
+	} else if (status == CLD_STOPPED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		// add the kid to jobs
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+
+	} else if (status == CLD_CONTINUED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		// add the kid form jobs
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+
+	} else if (status == CLD_TRAPPED) {
+		printf("child %d got trapped\n", childpid);
+	} else if(status == CLD_DUMPED) {
+		printf("child %d got dumped\n", childpid);
+	}
+}
+
+/*
+void update_list(pid_t gid, int flag) {
+ // guard the list
+}
+*/
+
+int set_up_signals() {
+	sigset_t shellmask;
+	struct sigaction sa;
+
+	sigaddset(&shellmask, SIGINT);
+	sigaddset(&shellmask, SIGTERM);
+	sigaddset(&shellmask, SIGTTOU);
+	sigaddset(&shellmask, SIGTTIN);
+	sigaddset(&shellmask, SIGQUIT);
+	sigaddset(&shellmask, SIGTSTP);
+	sigprocmask(SIG_BLOCK, &shellmask, NULL);
+
+	sa.sa_flags = SA_SIGINFO;
+	sa.sa_sigaction = &sigchld_handler;
+	sigaction(SIGCHLD, &sa, NULL);
+
+}
+
 void print_jobs(dlist jobs) {
 	job_node* top = get_head(jobs);
 	if(jobs == NULL) {
@@ -95,17 +156,6 @@ void print_jobs(dlist jobs) {
 	}
 }
 
-/*
-void sigchild_handler() {
-	cur_fg_job = STOUT_FILENO;
-}
-
-void update_list(pid_t gid, int flag) {
-
-}
-*/
-
-
 // read in the input and add one jobnode(with original input)
 char* read_input() {
   size_t readn;
@@ -116,13 +166,12 @@ char* read_input() {
     free(input);
     input = NULL;
   }
-
-  job_num ++;
-  job_node* jn = new_node(job_num, NOTKNOWN, NOTKNOWN, NOTKNOWN,input, NULL, NULL);
-  jn->original_input = malloc(sizeof(char) * (strlen(input))+1);
-  strncpy(jn->original_input, input, strlen(input));
-  jn->original_input[strlen(input)] = '\0';
-  dlist_push_end(all_joblist, jn);
+	job_num ++;
+	job_node* jn = new_node(job_num, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
+	jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
+	strncpy(jn->original_input, input, strlen(input));
+	jn->original_input[strlen(input)] = '\0';
+	dlist_push_end(all_joblist, jn);
   return input;
 }
 
@@ -144,7 +193,7 @@ int parse_input(char* input, char* delim, char** tasks) {
 		if(*token == '&') {
 				cur_token += '&';
 		}
-		cur_token[malloclength - 1] = '\n';
+		cur_token[malloclength - 1] = '\0';
 		tasks[total] = cur_token;
 
 		total += 1;
@@ -156,25 +205,6 @@ int parse_input(char* input, char* delim, char** tasks) {
 	}
 	return total;
 }
-
-int set_up_signals() {
-	sigset_t shellmask;
-	struct sigaction sa;
-
-	sigaddset(&shellmask, SIGINT);
-	sigaddset(&shellmask, SIGTERM);
-	sigaddset(&shellmask, SIGTTOU);
-	sigaddset(&shellmask, SIGTTIN);
-	sigaddset(&shellmask, SIGQUIT);
-	sigaddset(&shellmask, SIGTSTP);
-	sigprocmask(SIG_BLOCK,& shellmask, NULL);
-
-	sa.sa_flags = SA_SIGINFO;
-	//sa.sa_sigaction = &sigchld_handler;
-	sigaction(SIGCHLD, &sa, NULL);
-}
-
-
 
 int execute_input(char* task) {
 	char** processes;
@@ -200,20 +230,27 @@ int main(int argc, char* argv[]){
 	tcgetattr(mysh_fd, &mysh);
 	shell_pid = getpid();
 	set_up_signals();
+	init_sems();
 	init_joblists();
-	// starts executing
-	char* input = read_input();
-	char** multi_jobs; // needs to free
-	int num_jobs = parse_input(input, ";", multi_jobs);
+
 	do {
+		// starts executing
+		char* input = read_input();
+		char** multi_jobs; // needs to free
+		int num_jobs = parse_input(input, ";", multi_jobs);
 		for (int i = 0; i < num_jobs; i++) {
 			char** curjob;  //needs to free
 			int jobnum = parse_input(multi_jobs[i], "&", curjob);
 			for(int j = 0; j < jobnum; j++) {
 				run = execute_input(curjob[0]);
 			}
+			// free curjob
 		}
+		free(input);
+		// free multi_jobs
 	} while (run);
+	close_sems();
+	// clean up everything
 }
 
 void* create_shared_memory(size_t size){
