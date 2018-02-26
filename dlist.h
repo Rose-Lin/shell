@@ -9,6 +9,13 @@ typedef struct dlist_record* dlist;
 // with it.
 dlist dlist_new();
 
+
+job_node* get_head(dlist);
+
+job_node* get_tail(dlist);
+
+
+
 // returns the number of elements in the dlist. Runs in constant time.
 int dlist_size(dlist l);
 
@@ -60,5 +67,6 @@ void dlist_remove(dlist l, int n);
 
 // frees an dlist. Takes O(size(l)) steps.
 void dlist_free(dlist l);
+
 
 #endif

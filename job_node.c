@@ -15,6 +15,10 @@ job_node* new_node(int index, int status, pid_t pid, pid_t gpid, char* original_
   return n;
 }
 
+char* get_input(job_node* node) {
+  return node->original_input;
+}
+
 void insert_after(job_node* n, job_node* new_n){
   if(n->next){
     n->next->prev = new_n;
