@@ -11,7 +11,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <termios.h>
 
 #include "job_node.h"
 #include "dlist.h"
@@ -212,54 +211,6 @@ char* read_input() {
   return input;
 }
 
-int check_special_symbols(char* input) {
-	execjob_num = 0;
-	struct tokenizer* t = init_tokenizer(input, special_delim);
-	char* token = get_next_token(t);
-	while(token != NULL) {
-		execjob_num += 1;
-		token = get_next_token(t);
-	}
-	free_tokenizer(t);
-	return execjob_num;
-}
-
-/*
-void test_job_list(){
-  dlist dl = dlist_new();
-  job_node* j1 = new_node(1, 0,0,0,"first job",NULL, NULL);
-  dlist_push_end(dl, j1);
-  job_node* j2 = new_node(2,0,0,0,"second job", NULL, NULL);
-  insert_after(j1, j2);
-  job_node* j3 = new_node(3,0,0,0,"thrid job", NULL, NULL);
-  insert_after(j2,j3);
-  job_node* j4 = new_node(4,0,0,0, "fourth job", NULL,NULL);
-  insert_after(j3, j4);
-  job_node* j5 = new_node(5,0,0,0, "5th job", NULL,NULL);
-  insert_after(j4, j5);
-  job_node* j12 = new_node(0,0,0,0,"after 1st before 2nd", NULL,NULL);
-  job_node* h = j1;
-  dlist_push_end(dl, j2);
-  printf("%s\n",(dl->tail)->original_input );
-  // while (h){
-    // dlist_push_end(dl, h);
-    // printf(h->original_input);
-    // printf("\n" );
-    // h = h->next;
-  // }
-  printf("%d\n",dlist_size(dl) );
-  dlist_insert(dl,1, j12);
-  dlist_remove(dl, 2);
-  h = j1;
-  // while (h){
-  //   printf(h->original_input);
-  //   printf("\n" );
-  //   h = h->next;
-  // }
-  delete_node(j1);
-}
-*/
-
 int parse_input(char* input, char* delim, char** tasks) {
 	char* cur = input;
 	int total = 0;
@@ -267,7 +218,6 @@ int parse_input(char* input, char* delim, char** tasks) {
 	struct tokenizer* t = init_tokenizer(input, delim);
 	char* token = get_next_token(t);
 	tasks = malloc(sizeof(char*) * size);
-
 	while(token != NULL) {
 		int strlength = strlen(cur) - strlen(token);
 		int malloclength = strlength + 1;
@@ -311,7 +261,6 @@ int execute_input(char* task) {
 	return TRUE;
 }
 
-
 int main(int argc, char* argv[]){
 	// sets up
 	int run = FALSE;
@@ -341,15 +290,58 @@ int main(int argc, char* argv[]){
 	// clean up everything
 }
 
-
-
-
-
 void* create_shared_memory(size_t size){
   int protection = PROT_READ | PROT_WRITE;
   int visibility = MAP_ANONYMOUS | MAP_SHARED;
   return mmap(NULL, size, protection, visibility, 0, 0);
 }
+// int check_special_symbols(char* input) {
+// 	execjob_num = 0;
+// 	struct tokenizer* t = init_tokenizer(input, special_delim);
+// 	char* token = get_next_token(t);
+// 	while(token != NULL) {
+// 		execjob_num += 1;
+// 		token = get_next_token(t);
+// 	}
+// 	free_tokenizer(t);
+// 	return execjob_num;
+// }
+
+/*
+void test_job_list(){
+  dlist dl = dlist_new();
+  job_node* j1 = new_node(1, 0,0,0,"first job",NULL, NULL);
+  dlist_push_end(dl, j1);
+  job_node* j2 = new_node(2,0,0,0,"second job", NULL, NULL);
+  insert_after(j1, j2);
+  job_node* j3 = new_node(3,0,0,0,"thrid job", NULL, NULL);
+  insert_after(j2,j3);
+  job_node* j4 = new_node(4,0,0,0, "fourth job", NULL,NULL);
+  insert_after(j3, j4);
+  job_node* j5 = new_node(5,0,0,0, "5th job", NULL,NULL);
+  insert_after(j4, j5);
+  job_node* j12 = new_node(0,0,0,0,"after 1st before 2nd", NULL,NULL);
+  job_node* h = j1;
+  dlist_push_end(dl, j2);
+  printf("%s\n",(dl->tail)->original_input );
+  // while (h){
+    // dlist_push_end(dl, h);
+    // printf(h->original_input);
+    // printf("\n" );
+    // h = h->next;
+  // }
+  printf("%d\n",dlist_size(dl) );
+  dlist_insert(dl,1, j12);
+  dlist_remove(dl, 2);
+  h = j1;
+  // while (h){
+  //   printf(h->original_input);
+  //   printf("\n" );
+  //   h = h->next;
+  // }
+  delete_node(j1);
+}
+*/
 
 /*
 int i = 0;

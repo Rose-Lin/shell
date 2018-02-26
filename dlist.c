@@ -145,6 +145,16 @@ void dlist_remove(dlist l, int n){
   l->size--;
 }
 
+void dlist_remove_bypid(dlist l, pid_t pid){
+  job_node* n = get_jobnode_bypid(l->head, pid);
+  delete_node(n);
+}
+
+job_node* dlist_get_bypid(dlist l, pid_t pid){
+  job_node* h = l->head;
+  return get_jobnode_bypid(h, pid);
+}
+
 void dlist_free(dlist l){
   free_joblist(l->head);
   free(l);

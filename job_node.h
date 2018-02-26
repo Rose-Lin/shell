@@ -1,11 +1,13 @@
 #ifndef DLIST_NODE_H_
 #define DLIST_NODE_H_
+#include <termios.h>
 
 typedef struct job_node {
   int index;  // the index stored in this node
   int status; // the status of the job: fg/bg/suspended
   pid_t pid;  //pid of the job
   pid_t gpid;  //gpid of the job
+  struct termios terminal;
   char* original_input; //input from command line
   struct job_node* next; // pointer to next node
   struct job_node* prev; // pointer to previous node
@@ -25,6 +27,10 @@ void insert_before(job_node* n, job_node* new_n);
 // delete the given node
 // Precondition: Supplied node is not NULL.
 void delete_node(job_node* n);
+
+// return the jobnode found by pid;
+// If not found: return NULL
+job_node* get_jobnode_bypid(job_node* head, pid_t pid);
 
 // return a pointer to the indexth node in the list. If index is
 // the length of the list, this returns NULL, but does not error.
