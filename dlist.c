@@ -6,6 +6,9 @@
 #include "dlist.h"
 #include "job_node.h"
 
+#define FALSE 0
+#define TRUE 1
+
 typedef struct dlist_record{
   job_node* head;
   job_node* tail;
@@ -145,9 +148,13 @@ void dlist_remove(dlist l, int n){
   l->size--;
 }
 
-void dlist_remove_bypid(dlist l, pid_t pid){
+int dlist_remove_bypid(dlist l, pid_t pid){
   job_node* n = get_jobnode_bypid(l->head, pid);
-  delete_node(n);
+  if(n){
+    delete_node(n);
+    return TRUE;
+  }
+  return FALSE;
 }
 
 job_node* dlist_get_bypid(dlist l, pid_t pid){

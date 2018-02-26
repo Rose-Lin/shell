@@ -90,6 +90,18 @@ job_node* nth_job_prev(job_node* tail, int index){
   return t;
 }
 
+job_node* jobnode_deepcopy(job_node* n){
+  job_node* j = malloc(sizeof(n));
+  j->index = n->index;
+  j->status = n-> status;
+  j->pid = n->pid;
+  j->gpid = n->gpid;
+  j->terminal = n->terminal;
+  j->original_input = n->original_input;
+  j->next = NULL;n->next
+  j->prev = NULL;
+}
+
 void free_joblist(job_node* head){
   job_node* l = head;
   while(l){
