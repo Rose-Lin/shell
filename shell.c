@@ -25,11 +25,11 @@
 
 // enums
 enum status{background, foreground, suspended};
-enum flags{fg_to_bg,// not needed
-	   sus_to_bg,
-	   bg_to_fg,
-	   exit_shell,
-	   start_bg};
+enum flags{ fg_to_sus,
+		sus_to_bg,
+		bg_to_fg,
+	  terminated,
+	  start_bg};
 enum special_inputs{delim_bg = '&', delim_mult = ';'};
 // semaphores
 sem_t* all;
@@ -55,7 +55,7 @@ int execjob_num = 0; // number of jobs to be executed during one input
 // terminal attribute related globals
 pid_t shell_pid;
 struct termios mysh;
-int mysh_fd = STDIN_FILENO; 
+int mysh_fd = STDIN_FILENO;
 
 
 void int_sems() {
@@ -86,29 +86,30 @@ void sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
 	int status = sg->si_code;
 	sigset_t sset;
 	sigaddset(&sset, SIGCHLD);
-	
+	int update_result;
+
 	if(status == CLD_EXITED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		// remve the kid form jobs
+		update_result = update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
 
 	} else if (status == CLD_KILLED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		// remve the kid form jobs
+		update_result = update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
 
 	} else if (status == CLD_STOPPED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		// add the kid to jobs
+		update_result = update_list(childpid, fg_to_sus);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
 
 	} else if (status == CLD_CONTINUED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		// add the kid form jobs
+		update_result = update_list(childpid, bg_to_fg);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
 
 	} else if (status == CLD_TRAPPED) {
@@ -118,11 +119,46 @@ void sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
 	}
 }
 
-/*
-void update_list(pid_t gid, int flag) {
- // guard the list
+
+int update_list(pid_t pid, int flag) {
+	printf("in updating the job list\n");
+	if(flag == terminated) {
+		sem_wait(job);
+		int result = dlist_remove_bypid(sus_bg_jobs, pid);
+		sem_post(job);
+		if(result == FALSE) {
+			printf(" child %d is not in the 'job' list\n", pid);
+			return FALSE;
+		}
+		return TRUE;
+	}
+
+	if(flag == fg_to_sus) {
+		job_node* find = dlist_get_bypid(all_joblist);
+		if(target == NULL) {
+			printf("yao si le mei zhao dao \n");
+			return FALSE	;
+		}
+		job_node* target = jobnode_deepcopy(find);
+		target->status = suspended;
+		sem_wait(job);
+		dlist_push_end(dlist, target);
+		sem_post(job);
+		return TRUE;
+	}
+
+	if(flag == bg_to_fg) {
+		sem_wait(job);
+		int result = dlist_remove_bypid(sus_bg_jobs, pid);
+		sem_post(job);
+		if(result == FALSE) {
+			printf(" child %d is not in the 'job' list\n", pid);
+			return FALSE;
+		}
+		return TRUE;
+	}
 }
-*/
+
 
 int set_up_signals() {
 	sigset_t shellmask;
@@ -263,13 +299,14 @@ int execute_input(char* task) {
 		print_jobs(sus_bg_jobs);
 		return TRUE;
 	} else if(strcmp(processes[0], "bg") == 0) {
-		printf("to be implemented\n");	
+		printf("to be implemented\n");
 	} else if(strcmp(processes[0], "fg") == 0) {
 		printf("to be implemented\n");
 	} else if (strcmp(processes[0], "kill") == 0) {
 		printf("to be implemented\n");
 	} else {
 		printf("not yet\n");
+		// after fork needs to store the termios immediately
 	}
 	return TRUE;
 }
@@ -301,7 +338,7 @@ int main(int argc, char* argv[]){
 		// free multi_jobs
 	} while (run);
 	close_sems();
-	// clean up everything 
+	// clean up everything
 }
 
 
