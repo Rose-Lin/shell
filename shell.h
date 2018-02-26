@@ -14,7 +14,6 @@ int set_up_signals(); // sets up the signals for the shell
 
 void sigchld_handler(int, siginfo_t*, void*); // signal handler for sigchld
 
-
 void update_list(pid_t gid, int flag);
 
 void test_job_list(); //testing joblist
@@ -30,4 +29,4 @@ int parse_input(char* input, char* delim, char** store); // allocate an global a
 
 int execute_input(char* task);
 
-int exeute_bg(char** tasks);
+int exeute_bg(char** tasks); // needs to parse %
