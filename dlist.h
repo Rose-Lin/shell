@@ -66,7 +66,9 @@ job_node* dlist_get(dlist l, int index);
 void dlist_remove(dlist l, int n);
 
 //remove the jobnode according to pid from the dlist
-void dlist_remove_bypid(dlist l, pid_t pid);
+//return 1 when remove success
+//return 0 when remove fails, which means the jobnode is not founded
+int dlist_remove_bypid(dlist l, pid_t pid);
 
 //return the job_node found by pid
 job_node* dlist_get_bypid(dlist l, pid_t pid);
