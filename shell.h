@@ -7,9 +7,13 @@ void init_joblists(); // checked
 
 void free_joblists(); // checked
 
-void print_jobs(dlist*);  // checked
+void print_jobs(dlist job);  // checked
 
-void sigchild_handler();
+// signals
+int set_up_signals(); // sets up the signals for the shell
+
+void sigchld_handler(int, siginfo_t*, void*); // signal handler for sigchld
+
 
 void update_list(pid_t gid, int flag);
 
@@ -17,10 +21,13 @@ void test_job_list(); //testing joblist
 
 void* create_shared_memory(size_t size);
 
+
 char* read_input(); // simply read in input   // checked
 
 int check_special_symbols(char* input); // check for special characters  //checked
 
-int parse_input(char* input); // allocate an global array for storing tokens //checked
+int parse_input(char* input, char* delim, char** store); // allocate an global array for storing tokens //checked
 
-int execute_input(char** tokens, job_node* job);
+int execute_input(char* task);
+
+int exeute_bg(char** tasks);

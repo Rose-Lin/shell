@@ -9,9 +9,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <termios.h>
 
-#include "dlist.h"
 #include "job_node.h"
+#include "dlist.h"
 #include "shell.h"
 #include "tokenizer.h"
 
@@ -22,32 +25,38 @@
 
 // enums
 enum status{background, foreground, suspended};
-enum flags{fg_to_bg,
+enum flags{fg_to_bg,// not needed
 	   sus_to_bg,
 	   bg_to_fg,
-	   fg_to_kill,
 	   exit_shell,
 	   start_bg};
 enum special_inputs{delim_bg = '&', delim_mult = ';'};
 // semaphores
 sem_t* all;
-sem_t* bglist;
-sem_t* suslist;
+sem_t* job; //semaphore for suspended or background jobs
 
 // job lists
-dlist* all_joblist;
-dlist* background_joblist;
-dlist* suspended_joblist;
+dlist all_joblist;
+dlist sus_bg_jobs;
 
 // globals
 char special_delim[] = "&;";
 char all_delim[] = " &;";
+
 int multi_jobs = FALSE;
 int launch_bg = FALSE;
-pid_t cur_fg_job; // keeps track of the pid of the current foreground job
-int job_num;
+
+// needs to be guarded
+pid_t to_update; // keeps track of the pid of the current job to be updated
+
+int job_num;  // used to track the job index
 int execjob_num = 0; // number of jobs to be executed during one input
-char** tasks;
+
+// terminal attribute related globals
+pid_t shell_pid;
+struct termios mysh;
+int mysh_fd = STDIN_FILENO; 
+
 
 void int_sems() {
 	all = sem_open("all", O_CREAT, 0666, 1);
@@ -67,34 +76,38 @@ void close_sems() {
 void init_joblists() {
 	job_num = 0;
 	all_joblist = dlist_new();
-	background_joblist = dlist_new();
-	suspended_joblist = dlist_new();
+	sus_bg_jobs = dlist_new();
 }
 
 void free_joblists() {
-	dlist_free(suspended_joblist);
-	dlist_free(background_joblist);
+	dlist_free(sus_bg_jobs);
 	dlist_free(all_joblist);
 }
 
-void print_jobs(dlist* jobs) {
-	job_node* top = jobs->head;
+void print_jobs(dlist jobs) {
+	job_node* top = get_head(jobs);
 	if(jobs == NULL) {
 		printf("No jobs available.\n");
-	} else if (jobs->head == NULL) {
-		printf("No jobs yet. \n")
+	} else if (top == NULL) {
+		printf("No jobs yet. \n");
 	}
 	int index = 1;
 	while(top != NULL) {
-		printf("%d. %s \n", index, top->original_input);
+		printf("%d. %s \n", index, get_input(top));
 		top = top->next;
 		index ++;
 	}
 }
 
+/*
 void sigchild_handler() {
+	cur_fg_job = STOUT_FILENO;
+}
+
+void update_list(pid_t gid, int flag) {
 
 }
+*/
 
 
 // read in the input and add one jobnode(with original input)
@@ -108,7 +121,7 @@ char* read_input() {
     input = NULL;
   }
 	job_num ++;
-	job_node* jn = new_node(job_num, NOTKNOWN, NOTKNOWN, NOTKNOWN, NULL, NULL, all_joblist->tail);
+	job_node* jn = new_node(job_num, NOTKNOWN, NOTKNOWN, NOTKNOWN, NULL, NULL, get_tail(all_joblist));
 	jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
 	strncpy(jn->original_input, input, strlen(input));
 	jn->original_input[strlen(input)] = '\n';
@@ -128,6 +141,7 @@ int check_special_symbols(char* input) {
 	return execjob_num;
 }
 
+/*
 void test_job_list(){
   dlist dl = dlist_new();
   job_node* j1 = new_node(1, 0,0,0,"first job",NULL, NULL);
@@ -143,7 +157,7 @@ void test_job_list(){
   job_node* j12 = new_node(0,0,0,0,"after 1st before 2nd", NULL,NULL);
   job_node* h = j1;
   dlist_push_end(dl, j2);
-  printf("%s\n",dl->tail->original_input );
+  printf("%s\n",(dl->tail)->original_input );
   // while (h){
     // dlist_push_end(dl, h);
     // printf(h->original_input);
@@ -161,13 +175,16 @@ void test_job_list(){
   // }
   delete_node(j1);
 }
+*/
 
-int parse_input(char* input) {
-	tasks = malloc(sizeof(char*) * BUFSIZE);
+int parse_input(char* input, char* delim, char** tasks) {
 	char* cur = input;
 	int total = 0;
-	struct tokenizer* t = init_tokenizer(input, all_delim);
+	int size = BUFSIZE;
+	struct tokenizer* t = init_tokenizer(input, delim);
 	char* token = get_next_token(t);
+	tasks = malloc(sizeof(char*) * size);
+
 	while(token != NULL) {
 		int strlength = strlen(cur) - strlen(token);
 		int malloclength = strlength + 1;
@@ -175,41 +192,109 @@ int parse_input(char* input) {
 			malloclength ++;
 		}
 		char* cur_token = malloc(sizeof(char) *  malloclength);
-		strncpy(curtoken, cur, strlength);
+		strncpy(cur_token, cur, strlength);
 		if(*token == '&') {
 				cur_token += '&';
 		}
-		curtoken[malloclength - 1] = '\n';
+		cur_token[malloclength - 1] = '\n';
 		tasks[total] = cur_token;
+
 		total += 1;
 		if(total >= BUFSIZE) {
-			BUFSIZE *= 2;
-			tasks = (char**)realloc(tasks, BUFSIZE);
+			size += BUFSIZE;
+			tasks = (char**)realloc(tasks, size);
 		}
 		token = get_next_token(t);
 	}
+	return total;
 }
 
-int main(int argc, char* argv[]){
-  int i = 0;
-  void* shmem_all_joblist = create_shared_memory(sizeof(dlist*));
-  void* shmem_background_joblist = create_shared_memory(sizeof(dlist*));
-  void* shmem_suspended_joblist = create_shared_memory(sizeof(dlist*));
-  memcpy(shmem_all_joblist, (void*)&all_joblist, sizeof(dlist*));
-  memcpy(shmem_suspended_joblist,(void*)&suspended_joblist,sizeof(dlist*));
-  memcpy(shmem_background_joblist,(void*)&background_joblist,sizeof(dlist*));
-  size_t byte_num = 0;
-  size_t buff_size = BUFF_SIZE;
-  char* buffer = NULL;
-  // byte_num = getline(&buffer, &buff_size, STDIN_FILENO);
-  char* delimiter = ";& ";
-  tokenizer* t = init_tokenizer("se xdfnsfeos;skei&siefn;se", delimiter);
-  printf("%s\n", get_next_token(t));
-  test_job_list();
+int set_up_signals() {
+	sigset_t shellmask;
+	struct sigaction sa;
+
+	sigaddset(&shellmask, SIGINT);
+	sigaddset(&shellmask, SIGTERM);
+	sigaddset(&shellmask, SIGTTOU);
+	sigaddset(&shellmask, SIGTTIN);
+	sigaddset(&shellmask, SIGQUIT);
+	sigaddset(&shellmask, SIGTSTP);
+	sigprocmask(SIG_BLOCK,& shellmask, NULL);
+
+	sa.sa_flags = SA_SIGINFO;
+	sa.sa_sigaction = &sigchld_handler;
+	sigaction(SIGCHLD, &sa, NULL);
+
 }
+
+
+
+int execute_input(char* task) {
+	char** processes;
+	int argnum = parse_input(task, " ", processes);
+	if(strcmp(processes[0], "jobs") == 0) {
+		print_jobs(sus_bg_jobs);
+		return TRUE;
+	} else if(strcmp(processes[0], "bg") == 0) {
+		printf("to be implemented\n");	
+	} else if(strcmp(processes[0], "fg") == 0) {
+		printf("to be implemented\n");
+	} else if (strcmp(processes[0], "kill") == 0) {
+		printf("to be implemented\n");
+	} else {
+		printf("not yet\n");
+	}
+	return TRUE;
+}
+
+
+int main(int argc, char* argv[]){
+	// sets up
+	int run = FALSE;
+	tcgetattr(mysh_fd, &mysh);
+	shell_pid = getpid();
+	set_up_signals();
+
+	// starts executing
+	char* input = read_input();
+	char** multi_jobs; // needs to free
+	int num_jobs = parse_input(input, ";", multi_jobs);
+
+	do {
+		for (int i = 0; i < num_jobs; i++) {
+			char** curjob;  //needs to free
+			int jobnum = parse_input(multi_jobs[i], "&", curjob);
+			for(int j = 0; j < jobnum; j++) {
+				run = execute_input(curjob[0]);
+			}
+		}
+	} while (run);
+}
+
+
+
+
 
 void* create_shared_memory(size_t size){
   int protection = PROT_READ | PROT_WRITE;
   int visibility = MAP_ANONYMOUS | MAP_SHARED;
   return mmap(NULL, size, protection, visibility, 0, 0);
 }
+
+/*
+int i = 0;
+void* shmem_all_joblist = create_shared_memory(sizeof(dlist*));
+void* shmem_background_joblist = create_shared_memory(sizeof(dlist*));
+void* shmem_suspended_joblist = create_shared_memory(sizeof(dlist*));
+memcpy(shmem_all_joblist, (void*)&all_joblist, sizeof(dlist*));
+memcpy(shmem_suspended_joblist,(void*)&suspended_joblist,sizeof(dlist*));
+memcpy(shmem_background_joblist,(void*)&background_joblist,sizeof(dlist*));
+size_t byte_num = 0;
+size_t buff_size = BUFSIZE;
+char* buffer = NULL;
+// byte_num = getline(&buffer, &buff_size, STDIN_FILENO);
+char* delimiter = ";& ";
+tokenizer* t = init_tokenizer("se xdfnsfeos;skei&siefn;se", delimiter);
+printf("%s\n", get_next_token(t));
+test_job_list();
+*/

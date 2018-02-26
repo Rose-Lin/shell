@@ -37,6 +37,8 @@ job_node* nth_job(job_node* head, int index);
 // Precondition: the list has at least index number of nodes
 job_node* nth_job_prev(job_node* tail, int index);
 
+char* get_input(job_node*);
+
 // free an entire linked list. The list might be empty.
 void free_joblist(job_node* head);
 
