@@ -117,12 +117,13 @@ char* read_input() {
     free(input);
     input = NULL;
   }
-	job_num ++;
-	job_node* jn = new_node(job_num, NOTKNOWN, NOTKNOWN, NOTKNOWN, NULL, NULL, get_tail(all_joblist));
-	jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
-	strncpy(jn->original_input, input, strlen(input));
-	jn->original_input[strlen(input)] = '\n';
-	dlist_push_end(all_joblist, jn);
+
+  job_num ++;
+  job_node* jn = new_node(job_num, NOTKNOWN, NOTKNOWN, NOTKNOWN,input, NULL, NULL);
+  jn->original_input = malloc(sizeof(char) * (strlen(input))+1);
+  strncpy(jn->original_input, input, strlen(input));
+  jn->original_input[strlen(input)] = '\0';
+  dlist_push_end(all_joblist, jn);
   return input;
 }
 
@@ -219,9 +220,8 @@ int set_up_signals() {
 	sigprocmask(SIG_BLOCK,& shellmask, NULL);
 
 	sa.sa_flags = SA_SIGINFO;
-	sa.sa_sigaction = &sigchld_handler;
+	//sa.sa_sigaction = &sigchld_handler;
 	sigaction(SIGCHLD, &sa, NULL);
-
 }
 
 
@@ -251,7 +251,7 @@ int main(int argc, char* argv[]){
 	tcgetattr(mysh_fd, &mysh);
 	shell_pid = getpid();
 	set_up_signals();
-
+	init_joblists();
 	// starts executing
 	char* input = read_input();
 	char** multi_jobs; // needs to free

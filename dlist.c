@@ -59,11 +59,9 @@ job_node* get_tail(dlist dl) {
 
 void dlist_push_end(dlist l, job_node* n){
   if (l->tail){
-    printf("%s\n", "----");
     insert_after(l->tail, n);
     l->tail = l->tail->next;
   }else{
-    printf("%s\n", "----");
     l->head = n;
     l->tail = n;
   }
