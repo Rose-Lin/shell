@@ -23,6 +23,8 @@
 #define TRUE 1
 #define BUFSIZE 20
 #define NOTKNOWN -1
+#define SUCCESS 0
+#define FAILURE 1
 
 // enums
 enum status{background, foreground, suspended};
@@ -224,13 +226,27 @@ char* read_input() {
   return input;
 }
 
-int parse_input(char* input, char* delim, char** tasks) {
+Parse_output parse_input(char* input, char* delim, char** tasks) {
+	Parse_output s;
 	char* cur = input;
-	int total = 0;
+	s.total = 0;
 	int size = BUFSIZE;
 	struct tokenizer* t = init_tokenizer(input, delim);
 	char* token = get_next_token(t);
-	tasks = malloc(sizeof(char*) * size);
+	s.tasks = malloc(sizeof(char*) * size);
+	if (token == NULL){
+		int strlength = strlen(cur) - strlen(token);
+		int malloclength = strlength + 1;
+		char* cur_token = malloc(sizeof(char) *  malloclength);
+		strncpy(cur_token, cur, strlength);
+		if(*token == '&') {
+				cur_token += '&';
+		}
+		cur_token[malloclength - 1] = '\0';
+		s.tasks[s.total] = cur_token;
+		s.total += 1;
+		return s;
+	}
 	while(token != NULL) {
 		int strlength = strlen(cur) - strlen(token);
 		int malloclength = strlength + 1;
@@ -243,23 +259,23 @@ int parse_input(char* input, char* delim, char** tasks) {
 				cur_token += '&';
 		}
 		cur_token[malloclength - 1] = '\0';
-		tasks[total] = cur_token;
+		s.tasks[s.total] = cur_token;
 
-		total += 1;
-		if(total >= BUFSIZE) {
+		s.total += 1;
+		if(s.total >= BUFSIZE) {
 			size += BUFSIZE;
-			tasks = (char**)realloc(tasks, size);
+			s.tasks = (char**)realloc(s.tasks, size);
 		}
 		token = get_next_token(t);
 	}
-	return total;
+	return s;
 }
 
 
 /* ============================== executions =============================== */
 int execute(char* task) {
 	char** jobargs = NULL;
-	int argnum = parse_input(task, " ", jobargs);
+	int argnum = parse_input->(task, " ", jobargs);
 	char** bgjob = NULL;
 	struct termios tmode;
 	int bg = parse_input(task, "&", bgjob);
@@ -387,7 +403,6 @@ int main(int argc, char* argv[]){
 	// sets up
 	int run = FALSE;
 	shell_pid = getpid();
-	printf("1");
 	if(setpgid(shell_pid, shell_pid) < 0) {
 		perror("Reset shell gpid failed\n");
 		exit(FALSE);
@@ -399,20 +414,24 @@ int main(int argc, char* argv[]){
 			perror("Setting shell to foreground failed\n");
 		}
 	}
+	init_sems();
+	init_joblists();
 	tcgetattr(mysh_fd, &mysh);
 
 	do {
 		// starts executing
 		// check if need to store the shell termios here
 		char* input = read_input();
-		printf("2");
 		char** multijobs = NULL; // needs to free
-		int num_jobs = parse_input(input, ";", multijobs);
-		for (int i = 0; i < num_jobs; i++) {
+		Parse_output s;
+		s = parse_input(input, ";", multijobs);
+		for (int i = 0; i < s.total; i++) {
 			char** curjob = NULL;  // needs to free
-			int jobnum = parse_input(multijobs[i], "&", curjob);
-			for(int j = 0; j < jobnum; j++) {
-				run = execute_input(curjob[0]);
+			Parse_output po;
+			po = parse_input(s.tasks[i], "&", curjob);
+			printf("%d\n", po.total);
+			for(int j = 0; j < po.total; j++) {
+				run = execute_input(po.tasks[0]);
 			}
 			// free curjob
 		}
