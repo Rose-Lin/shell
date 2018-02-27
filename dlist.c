@@ -139,7 +139,6 @@ job_node* dlist_get(dlist l, int index){
 // }
 
 void dlist_remove(dlist l, int n){
-  int old = 0;
   if(n <= (l->size)/2){
     delete_node(nth_job(l->head,n));
   }else{

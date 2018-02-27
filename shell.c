@@ -368,6 +368,7 @@ int execute_input(char* task) {
 	} else if (strcmp(processes[0], "kill") == 0) {
 		printf("to be implemented\n");
 	} else {
+		
 		printf("not yet\n");
 		// after fork needs to store the termios immediately
 		execute(task);

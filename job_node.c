@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <termios.h>
 #include "job_node.h"
 
 job_node* new_node(int index, int status, pid_t pid, pid_t gpid, char* original_input, job_node* next, job_node* prev){
-  job_node* n = malloc(sizeof(job_node));
+  job_node* n = (struct job_node*)malloc(sizeof(job_node));
   n->index = index;
   n->status = status;
   n->pid = pid;
@@ -91,15 +92,9 @@ job_node* nth_job_prev(job_node* tail, int index){
 }
 
 job_node* jobnode_deepcopy(job_node* n){
-  job_node* j = malloc(sizeof(n));
-  j->index = n->index;
-  j->status = n-> status;
-  j->pid = n->pid;
-  j->gpid = n->gpid;
+  job_node* j = new_node(n->index, n->status, n->pid, n->gpid,n->original_input, NULL,NULL);
   j->jmode = n->jmode;
-  j->original_input = n->original_input;
-  j->next = NULL;
-  j->prev = NULL;
+  return j;
 }
 
 void free_joblist(job_node* head){
