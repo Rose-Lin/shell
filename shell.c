@@ -29,10 +29,10 @@
 // enums
 enum status{background, foreground, suspended};
 enum flags{ fg_to_sus,
-		sus_to_bg,
-		bg_to_fg,
-	  terminated,
-	  start_bg};
+	    sus_to_bg,
+	    bg_to_fg,
+	    terminated,
+	    start_bg};
 enum special_inputs{delim_bg = '&', delim_mult = ';'};
 // semaphores
 sem_t* all;
@@ -64,22 +64,24 @@ struct termios mysh;
 int mysh_fd = STDIN_FILENO;
 
 /* ========================= Initializing ========================== */
-void init_sems() {
-	all = sem_open("all", O_CREAT, 0666, 1);
-	job = sem_open("job", O_CREAT, 0666, 1);
-}
+/*
+  void init_sems() {
+  all = sem_open("all", O_CREAT, 0666, 1);
+  job = sem_open("job", O_CREAT, 0666, 1);
+  }
 
-void close_sems() {
-	sem_unlink("all");
-	sem_close(all);
-	sem_unlink("job");
-	sem_close(job);
-}
+  void close_sems() {
+  sem_unlink("all");
+  sem_close(all);
+  sem_unlink("job");
+  sem_close(job);
+  }
+*/
 
 void init_joblists() {
-	job_num = 0;
-	all_joblist = dlist_new();
-	sus_bg_jobs = dlist_new();
+  job_num = 0;
+  all_joblist = dlist_new();
+  sus_bg_jobs = dlist_new();
 }
 
 
@@ -129,80 +131,82 @@ void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
 }
 
 int set_up_signals() {
-	sigset_t shellmask;
-	struct sigaction sa;
+  sigset_t shellmask;
+  struct sigaction sa;
 
-	sigaddset(&shellmask, SIGINT);
-	sigaddset(&shellmask, SIGTERM);
-	sigaddset(&shellmask, SIGTTOU);
-	sigaddset(&shellmask, SIGTTIN);
-	sigaddset(&shellmask, SIGQUIT);
-	sigaddset(&shellmask, SIGTSTP);
-	sigprocmask(SIG_BLOCK, &shellmask, NULL);
+  sigaddset(&shellmask, SIGINT);
+  sigaddset(&shellmask, SIGTERM);
+  sigaddset(&shellmask, SIGTTOU);
+  sigaddset(&shellmask, SIGTTIN);
+  sigaddset(&shellmask, SIGQUIT);
+  sigaddset(&shellmask, SIGTSTP);
+  sigprocmask(SIG_BLOCK, &shellmask, NULL);
 
-	sa.sa_flags = SA_SIGINFO;
-	// sa.sa_sigaction = &sigchld_handler;
-	sigaction(SIGCHLD, &sa, NULL);
-	return TRUE;
+  sa.sa_flags = SA_SIGINFO | SA_RESTART;
+  // sa.sa_sigaction = &sigchld_handler;
+  sigaction(SIGCHLD, &sa, NULL);
+  return TRUE;
 }
 
 
 /* ============================= update list ============================ */
 int update_list(pid_t pid, int flag) {
-	printf("in updating the job list\n");
-	if(flag == terminated) {
-		sem_wait(job);
-		int result = dlist_remove_bypid(sus_bg_jobs, pid);
-		sem_post(job);
-		if(result == FALSE) {
-			printf(" child %d is not in the 'job' list\n", pid);
-			return FALSE;
-		}
-		return TRUE;
-	}
+  sigset_t sset;
+  sigaddset(&sset, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &sset, NULL);
 
-	if(flag == fg_to_sus) {
-		job_node* find = dlist_get_bypid(all_joblist, pid);
-		if(find == NULL) {
-			printf("yao si le mei zhao dao \n");
-			return FALSE	;
-		}
-		job_node* target = jobnode_deepcopy(find);
-		target->status = suspended;
-		sem_wait(job);
-		dlist_push_end(sus_bg_jobs, target);
-		sem_post(job);
-		return TRUE;
-	}
+  printf("in updating the job list\n");
+  if(flag == terminated) {
+    int result = dlist_remove_bypid(sus_bg_jobs, pid);
+    sigprocmask(SIG_UNBLOCK, &sset, NULL);
+    if(result == FALSE) {
+      printf(" child %d is not in the 'job' list\n", pid);
+      return FALSE;
+    }
+    return TRUE;
+  }
 
-	if(flag == bg_to_fg) {
-		sem_wait(job);
-		int result = dlist_remove_bypid(sus_bg_jobs, pid);
-		sem_post(job);
-		if(result == FALSE) {
-			printf(" child %d is not in the 'job' list\n", pid);
-			return FALSE;
-		}
-		return TRUE;
-	}
-	return TRUE;
+  if(flag == bg_to_fg) {
+    int result = dlist_remove_bypid(sus_bg_jobs, pid);
+    sigprocmask(SIG_UNBLOCK, &sset, NULL);
+    if(result == FALSE) {
+      printf(" child %d is not in the 'job' list\n", pid);
+      return FALSE;
+    }
+    return TRUE;
+  }
+
+	/*if(flag == fg_to_sus) {
+    job_node* find = dlist_get_bypid(all_joblist, pid);
+    if(find == NULL) {
+      printf("yao si le mei zhao dao \n");
+      return FALSE;
+    }
+    job_node* target = jobnode_deepcopy(find);
+    target->status = suspended;
+    dlist_push_end(sus_bg_jobs, target);
+    sigprocmask(SIG_UNBLOCK, &sset, NULL);
+    return TRUE;
+  }*/
+
+  return TRUE;
 }
 
 
 /* ========================= for "jobs" command ========================= */
 void print_jobs(dlist jobs) {
-	job_node* top = get_head(jobs);
-	if(jobs == NULL) {
-		printf("No jobs available.\n");
-	} else if (top == NULL) {
-		printf("No jobs yet. \n");
-	}
-	int index = 1;
-	while(top != NULL) {
-		printf("%d. %s \n", index, get_input(top));
-		top = top->next;
-		index ++;
-	}
+  job_node* top = get_head(jobs);
+  if(jobs == NULL) {
+    printf("No jobs available.\n");
+  } else if (top == NULL) {
+    printf("No jobs yet. \n");
+  }
+  int index = 1;
+  while(top != NULL) {
+    printf("%d. %s \n", index, get_input(top));
+    top = top->next;
+    index ++;
+  }
 }
 
 
@@ -218,301 +222,277 @@ char* read_input() {
     free(input);
     input = NULL;
   }
-	printf("4\n");
-	job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
-	printf("5\n");
-	jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
-	sprintf(jn->original_input, input);
-	jn->original_input[strlen(input)] = '\0';
-	dlist_push_end(all_joblist, jn);
+
+  printf("4\n");
+  job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
+  printf("5\n");
+  jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
+  sprintf(jn->original_input, input);
+  jn->original_input[strlen(input)] = '\0';
+  dlist_push_end(all_joblist, jn);
   return input;
 }
 
 parse_output* parse_input(char* input, char* delim) {
-	printf("%s\n", "~~~~~~~~~~~~~~");
-	printf("%s\n", input);
-	char* cur = input;
-	int total = 0;
-	int size = BUFSIZE;
-	parse_output* po = malloc(sizeof(struct parse_output));
-	if(po == NULL) {
-		printf("malloc failed\n");
-		return NULL;
-	}
-	struct tokenizer* t = init_tokenizer(input, delim);
-	char* token = get_next_token(t);
-	printf("token is: %s\n", token);
-	po->tasks = (char**)malloc(sizeof(char*) * size);
-	if(token == NULL) {
-		int len = strlen(input);
-		if((po->tasks[total] = malloc(sizeof(char) *  len)) == NULL) {
-			printf("malloc failed\n");
-			return NULL;
-		}
-		printf("%s\n", "token is null");
-		sprintf(po->tasks[total], input);
-		po->tasks[total][len] = '\0';
-		printf("%s\n", "++++++++");
-		printf("%s\n", po->tasks[total]);
-		po->num = 1;
-		return po;
-	} else if (strcmp(token, "\n") == 0) {
-		int len = strlen(input) - 1;
-		if(len == 0) {
-			free(po->tasks);
-			free(po);
-			return NULL;
-		}
-		if((po->tasks[total] = malloc(sizeof(char) *  strlen(input))) == NULL) {
-			printf("malloc failed\n");
-			return NULL;
-		}
-		sprintf(po->tasks[total], input);
-		po->tasks[total][len] = '\0';
-		po->num = 1;
-		return po;
-	}
-	while(token != NULL && strcmp(token, "\n") != 0) {
-		int strlength = strlen(cur) - strlen(token);
-		int malloclength = strlength + 1;
-		if(token[strlen(token) - 1] == '&') { //if the current one is background job
-			malloclength ++;
-		}
-		printf("%s\n", "----------------1");
-		po->tasks[total] = malloc(sizeof(char) *  malloclength);
-		sprintf(po->tasks[total], input, malloclength);
-		printf("%s\n", input);
-		printf("tasks: %s\n", po->tasks[total]);
-		// if(token[strlen(token) - 1] == '&') {
-			printf("%s\n", "---------------2");
-			// po->tasks[total] += '&';
-			printf("tasks: %s\n", po->tasks[total]);
-		// }
-		po->tasks[total][malloclength - 1] = '\0';
+  char* cur = input;
+  int total = 0;
+  int size = BUFSIZE;
+  parse_output* po = malloc(sizeof(struct parse_output));
+  if(po == NULL) {
+    printf("malloc failed\n");
+    return NULL;
+  }
+  struct tokenizer* t = init_tokenizer(input, delim);
+  char* token = get_next_token(t);
+  po->tasks = (char**)malloc(sizeof(char*) * size);
+  if(token == NULL) {
+    int len = strlen(input);
+    if((po->tasks[total] = malloc(sizeof(char) *  len)) == NULL) {
+      printf("malloc failed\n");
+      return NULL;
+    }
+    sprintf(po->tasks[total], input);
+    po->tasks[total][len] = '\0';
+    po->num = 1;
+    return po;
+  } else if (strcmp(token, "\n") == 0) {
+    int len = strlen(input) - 1;
+    if(len == 0) {
+      free(po->tasks);
+      free(po);
+      return NULL;
+    }
+    if((po->tasks[total] = malloc(sizeof(char) *  strlen(input))) == NULL) {
+      printf("malloc failed\n");
+      return NULL;
+    }
+    sprintf(po->tasks[total], input);
+    po->tasks[total][len] = '\0';
+    po->num = 1;
+    return po;
+  }
 
-		total += 1;
-		if(total >= BUFSIZE) {
-			size += BUFSIZE;
-			po->tasks = (char**)realloc(po->tasks, size);
-		}
-		token = get_next_token(t);
-	}
-	printf("%d\n", total);
-	printf("%s\n", po->tasks[0]);
-	// po->num = total + 1;
-	po->num = total;
-	return po;
+  while(token != NULL && strcmp(token, "\n") != 0) {
+		printf("cur is %s|\\\\   \n", cur);
+    int strlength = strlen(cur) - strlen(token);
+    int malloclength = strlength + 1;
+    if(*token == '&') { //if the current one is background job
+      malloclength ++;
+    }
+		printf("malloc length is %d\n", malloclength);
+    po->tasks[total] = malloc(sizeof(char) *  malloclength);
+		sprintf(po->tasks[total], "%-*s", malloclength - 1, cur);
+
+		/*for(int i = 0; i < malloclength - 1; i++) {
+			po->tasks[total][i] = cur[i];
+		}*/
+    po->tasks[total][malloclength - 1] = '\0';
+		printf("the job is %s\n", po->tasks[total]);
+    total += 1;
+    if(total >= BUFSIZE) {
+      size += BUFSIZE;
+      po->tasks = (char**)realloc(po->tasks, size);
+    }
+		cur = token;
+    token = get_next_token(t);
+  }
+  po->num = total;
+  return po;
 }
 
 
 /* ============================== executions =============================== */
 
 int execute(char* task) {
-	int bg = FALSE;
-	printf("-----------------------------------123345---------------------");
-	printf("task in execute is %s\n", task);
-	parse_output* jobs = parse_input(task, " ");
-	parse_output* bgjob = parse_input(task, "&");
+  int bg = FALSE;
+  printf("task in execute is %s\n", task);
+  parse_output* jobs = parse_input(task, " ");
+  parse_output* bgjob = parse_input(task, "&");
 
-	if(bgjob->num == 1 && bgjob->tasks[0][strlen(bgjob->tasks[0]) - 1] == '&') {
-		bg = TRUE;
-	} else if(bgjob->num  > 1) {
-		bg = TRUE;
-	}
-	// !!!!! free bgjob
-	printf("current job is %d background or not\n", bg);
+  if(bgjob->num == 1 && bgjob->tasks[0][strlen(bgjob->tasks[0]) - 1] == '&') {
+    bg = TRUE;
+  } else if(bgjob->num  > 1) {
+    bg = TRUE;
+  }
+  // !!!!! free bgjob
+  printf("current job is %d background or not\n", bg);
 
-	if(jobs->num == 0) {
-		printf("No input\n");
-		return TRUE;
-	}
+  if(jobs->num == 0) {
+    printf("No input\n");
+    return TRUE;
+  }
 
-	pid_t pid = fork();
-	if(pid < 0) {
-		perror("Fork failed \n");
-		return TRUE;
-	}
-	else if(pid == 0) {
-		pid_t chpid = getpid();
-		pid_t chgid;
-		int status = bg == TRUE ? background : foreground ;
-		job_node* newjob = new_node(dlist_size(all_joblist) + 1, status, chpid, NOTKNOWN, task, NULL, NULL);
-		if(setpgid(chpid, chpid) < 0 ) {
-			perror("set child gid failed: ");
-		}
-		chgid = getpgid(getpid());
-		newjob->gpid = chgid;
-
-		/* no idea what is this
-		if (infile != STDIN_FILENO)
-    {
-      dup2 (infile, STDIN_FILENO);
-      close (infile);
+  pid_t pid = fork();
+  if(pid < 0) {
+    perror("Fork failed \n");
+    return TRUE;
+  }
+  else if(pid == 0) {
+    pid_t chpid = getpid();
+    if(setpgid(chpid, chpid) < 0 ) {
+      perror("set child gid failed: ");
     }
-  if (outfile != STDOUT_FILENO)
-    {
-      dup2 (outfile, STDOUT_FILENO);
-      close (outfile);
+    /* no idea what is this
+       if (infile != STDIN_FILENO)
+       {
+       dup2 (infile, STDIN_FILENO);
+       close (infile);
+       }
+       if (outfile != STDOUT_FILENO)
+       {
+       dup2 (outfile, STDOUT_FILENO);
+       close (outfile);
+       }
+       if (errfile != STDERR_FILENO)
+       {
+       dup2 (errfile, STDERR_FILENO);
+       close (errfile);
+       }
+    */
+    // unblock signals for childpid
+    signal (SIGINT, SIG_DFL);
+    signal (SIGQUIT, SIG_DFL);
+    signal (SIGTSTP, SIG_DFL);
+    signal (SIGTTIN, SIG_DFL);
+    signal (SIGTTOU, SIG_DFL);
+    signal (SIGTERM, SIG_DFL);
+
+    if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
+      perror("Execution errror ");
     }
-  if (errfile != STDERR_FILENO)
-    {
-      dup2 (errfile, STDERR_FILENO);
-      close (errfile);
+    // free this jobs
+    exit(0);
+
+  } else if(pid > 0) {
+    int stat;
+
+    if(bg) {
+      job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, pid, NOTKNOWN, task, NULL, NULL);
+      newjob->gpid = getpgid(pid);
+      waitpid(pid, &stat, WNOHANG);
+    } else {
+      //tcsetpgrp(STDIN_FILENO, pid);
+      waitpid(pid, &stat, WUNTRACED);
+      printf("in patent\n");
+      if(WIFSTOPPED(stat)){
+				struct termios childt;
+				tcgetattr(STDOUT_FILENO, &childt);
+				job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, suspended, pid,  getpgid(pid), task, NULL, NULL);
+				newjob->jmode = childt;
+				sigset_t sset;
+				sigaddset(&sset, SIGCHLD);
+				sigprocmask(SIG_BLOCK, &sset, NULL);
+				dlist_push_end(sus_bg_jobs, newjob);
+				sigprocmask(SIG_UNBLOCK, &sset, NULL);
+      }
+      tcsetpgrp(mysh_fd, getpgid(getpid()));
+      tcsetattr(mysh_fd, TCSADRAIN, &mysh);
     }
-*/
-		// unblock signals for childpid
-		signal (SIGINT, SIG_DFL);
-		signal (SIGQUIT, SIG_DFL);
-		signal (SIGTSTP, SIG_DFL);
-		signal (SIGTTIN, SIG_DFL);
-		signal (SIGTTOU, SIG_DFL);
-		signal (SIGTERM, SIG_DFL);
-
-		tcgetattr(STDOUT_FILENO, &newjob->jmode);
-		dlist_push_end(all_joblist, newjob);
-
-		if(bg) {
-			job_node* njobcpy = jobnode_deepcopy(newjob);
-			njobcpy->index = dlist_size(sus_bg_jobs) + 1;
-			dlist_push_end(sus_bg_jobs, njobcpy);
-
-			if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
-				perror("Execution errror: ");
-			}
-			// free this jobs
-			exit(0);
-
-		} else {
-		  printf("in here %s execution\n", jobs->tasks[0]);
-		  // tcsetattr(mysh_fd, TCSANOW, &newjob->jmode);
-		  // tcsetpgrp(mysh_fd, chgid);
-			if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
-				perror("Execution errror: ");
-			}
-			//free the jobs
-			//free(jobargs);
-			exit(0);
-		}
-	} else if(pid > 0) {
-		int stat;
-		if(bg) {
-			waitpid(pid, &stat, WNOHANG);
-		} else {
-		  tcsetpgrp(STDIN_FILENO, pid);
-			waitpid(pid, &stat, WUNTRACED);
-			if(WIFSTOPPED(stat)){
-				update_list(pid, fg_to_sus);
-				tcsetpgrp(mysh_fd, getpgid(getpid()));
-				tcsetattr(mysh_fd, TCSADRAIN, &mysh);
-			}
-		}
-	}
-	return TRUE;
+  }
+  return TRUE;
 }
 
 
 int execute_input(char* task) {
-	int result = TRUE;
-	parse_output* p = parse_input(task, " ");
-	printf("current task is %s\n", p->tasks[1]);
-	if(strcmp(p->tasks[0], "jobs") == 0) {
-		print_jobs(sus_bg_jobs);
-		// free processes
-	} else if(strcmp(p->tasks[0], "bg") == 0) {
-		printf("to be implemented\n");
-	} else if(strcmp(p->tasks[0], "fg") == 0) {
-		printf("to be implemented\n");
-	} else if (strcmp(p->tasks[0], "kill") == 0) {
-		printf("to be implemented\n");
-	} else if(strcmp(p->tasks[0], "exit") == 0) {
-		// need to free p
-		result = FALSE;
-	}else {
-		printf("not yet\n");
-		// after fork needs to store the termios immediately
-		execute(p->tasks[0]);
-	}
-	return result;
+  int result = TRUE;
+  parse_output* p = parse_input(task, " ");
+  printf("current task is %s\n", p->tasks[0]);
+  if(strcmp(p->tasks[0], "jobs") == 0) {
+    print_jobs(sus_bg_jobs);
+    // free processes
+  } else if(strcmp(p->tasks[0], "bg") == 0) {
+    printf("to be implemented\n");
+  } else if(strcmp(p->tasks[0], "fg") == 0) {
+    printf("to be implemented\n");
+  } else if (strcmp(p->tasks[0], "kill") == 0) {
+    printf("to be implemented\n");
+  } else if(strcmp(p->tasks[0], "exit") == 0) {
+    // need to free p
+    result = FALSE;
+  }else {
+
+    printf("not yet\n");
+    // after fork needs to store the termios immediately
+    result = execute(task);
+  }
+  return result;
 }
 
 
 /* ============================ clean up stuff ============================= */
 void free_joblists() {
-	dlist_free(sus_bg_jobs);
-	dlist_free(all_joblist);
+  dlist_free(sus_bg_jobs);
+  dlist_free(all_joblist);
 }
 
 void free_parser(parse_output* po) {
-	if(po != NULL) {
-		if(po->num > 0) {
-			int index = 0;
-			for(int i = 0; i < po->num; i++) {
-				free(po->tasks[index]);
-			}
-		}
-		free(po->tasks);
-	}
-	free(po);
+  if(po != NULL) {
+    if(po->num > 0) {
+      int index = 0;
+      for(int i = 0; i < po->num; i++) {
+	free(po->tasks[index]);
+      }
+    }
+    free(po->tasks);
+  }
+  free(po);
 }
 
 int main(int argc, char* argv[]){
-	// sets up
+  // sets up
   set_up_signals();
-	int run = FALSE;
-	shell_pid = getpid();
-	if(setpgid(shell_pid, shell_pid) < 0) {
-		perror("Reset shell gpid failed\n");
-		exit(FALSE);
-	}
-	shell_gpid = getpgid(shell_pid);
-	if(shell_gpid != tcgetpgrp(mysh_fd)) {
-		int result = tcsetpgrp(mysh_fd, shell_gpid);
-		if(result < 0) {
-			perror("Setting shell to foreground failed\n");
-		}
-	}
-	init_sems();
-	init_joblists();
+  int run = FALSE;
+  shell_pid = getpid();
+  if(setpgid(shell_pid, shell_pid) < 0) {
+    perror("Reset shell gpid failed\n");
+    exit(FALSE);
+  }
+  shell_gpid = getpgid(shell_pid);
+  if(shell_gpid != tcgetpgrp(mysh_fd)) {
+    int result = tcsetpgrp(mysh_fd, shell_gpid);
+    if(result < 0) {
+      perror("Setting shell to foreground failed\n");
+    }
+  }
+  init_joblists();
 
-	tcgetattr(mysh_fd, &mysh);
+  tcgetattr(mysh_fd, &mysh);
 
-	do {
-		// starts executing
-		// check if need to store the shell termios here
-		char* input = read_input();
-		if(input == NULL) {
-			printf("No input \n");
-			run = TRUE;
-			continue;
-		}
-		printf("%s\n", "dealing with newline");
-		parse_output* nonewline = parse_input(input, "\n");
-		if(nonewline == NULL) {
-			printf("No input \n");
-			run = TRUE;
-			continue;
-		}
-		printf("%s\n", "dealing with ;");
-		parse_output* job = parse_input(nonewline->tasks[0], ";");
-		printf("---------------------------------------4\n");
-		printf("job->num: %d\n", job->num);
-		for (int i = 0; i < job->num; i++) {
-			printf("%s\n", "deaing with &");
-			parse_output* p = parse_input(job->tasks[i], "&");
-			for(int j = 0; j < p->num; j++) {
-				printf("%s\n", "``````````````````````````");
-				printf("%s\n", p->tasks[0]);
+  do {
+    // starts executing
+    // check if need to store the shell termios here
+    char* input = read_input();
+		printf("the input in main is %s", input);
+    if(input == NULL) {
+      printf("No input \n");
+      run = TRUE;
+      continue;
+    }
+    parse_output* nonewline = parse_input(input, "\n");
+		printf("the input after nonewline in main is %s", nonewline->tasks[0]);
+    if(nonewline == NULL) {
+      printf("No input \n");
+      run = TRUE;
+      continue;
+    }
+    parse_output* job = parse_input(nonewline->tasks[0], ";");
+		printf("the input in main after job parse is %s", job->tasks[0]);
+    for (int i = 0; i < job->num; i++) {
+      parse_output* p = parse_input(job->tasks[i], "&");
+			printf("the input in main after p parse is %s  num %d", p->tasks[0], p->num);
+      for(int j = 0; j < p->num; j++) {
+				printf("start running in main\n");
 				run = execute_input(p->tasks[0]);
-			}
-			// free curjob
-		}
-		printf("before free input 443\n");
-		free(input);
-		// check if need to restore the shell termios here
-		// free multijobs
-	} while (run);
-	close_sems();
-	// clean up everything
+				printf("finish running in main\n");
+      }
+      // free curjob
+    }
+    //printf("before free input 443\n");
+    free(input);
+    // check if need to restore the shell termios here
+    // free multijobs
+  } while (run);
+  // clean up everything
 }
 
 // int check_special_symbols(char* input) {
