@@ -58,7 +58,7 @@ struct termios mysh;
 int mysh_fd = STDIN_FILENO;
 
 
-void int_sems() {
+void init_sems() {
 	all = sem_open("all", O_CREAT, 0666, 1);
 	job = sem_open("job", O_CREAT, 0666, 1);
 }
@@ -88,7 +88,6 @@ void* sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
 	sigaddset(&sset, SIGCHLD);
 
 	if(status == CLD_EXITED) {
-
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -140,15 +139,15 @@ int update_list(pid_t pid, int flag) {
 	}
 
 	if(flag == fg_to_sus) {
-		job_node* find = dlist_get_bypid(all_joblist);
-		if(target == NULL) {
+		job_node* find = dlist_get_bypid(all_joblist, pid);
+		if(find == NULL) {
 			printf("yao si le mei zhao dao \n");
 			return FALSE	;
 		}
 		job_node* target = jobnode_deepcopy(find);
 		target->status = suspended;
 		sem_wait(job);
-		dlist_push_end(dlist, target);
+		dlist_push_end(sus_bg_jobs, target);
 		sem_post(job);
 		return TRUE;
 	}
@@ -179,7 +178,7 @@ int set_up_signals() {
 	sigprocmask(SIG_BLOCK, &shellmask, NULL);
 
 	sa.sa_flags = SA_SIGINFO;
-	sa.sa_sigaction = &sigchld_handler;
+	// sa.sa_sigaction = &sigchld_handler;
 	sigaction(SIGCHLD, &sa, NULL);
 
 }
@@ -325,41 +324,44 @@ void* create_shared_memory(size_t size){
 // 	return execjob_num;
 // }
 
-/*
-void test_job_list(){
-  dlist dl = dlist_new();
-  job_node* j1 = new_node(1, 0,0,0,"first job",NULL, NULL);
-  dlist_push_end(dl, j1);
-  job_node* j2 = new_node(2,0,0,0,"second job", NULL, NULL);
-  insert_after(j1, j2);
-  job_node* j3 = new_node(3,0,0,0,"thrid job", NULL, NULL);
-  insert_after(j2,j3);
-  job_node* j4 = new_node(4,0,0,0, "fourth job", NULL,NULL);
-  insert_after(j3, j4);
-  job_node* j5 = new_node(5,0,0,0, "5th job", NULL,NULL);
-  insert_after(j4, j5);
-  job_node* j12 = new_node(0,0,0,0,"after 1st before 2nd", NULL,NULL);
-  job_node* h = j1;
-  dlist_push_end(dl, j2);
-  printf("%s\n",(dl->tail)->original_input );
-  // while (h){
-    // dlist_push_end(dl, h);
-    // printf(h->original_input);
-    // printf("\n" );
-    // h = h->next;
-  // }
-  printf("%d\n",dlist_size(dl) );
-  dlist_insert(dl,1, j12);
-  dlist_remove(dl, 2);
-  h = j1;
-  // while (h){
-  //   printf(h->original_input);
-  //   printf("\n" );
-  //   h = h->next;
-  // }
-  delete_node(j1);
-}
-*/
+
+// void test_job_list(){
+//   dlist dl = dlist_new();
+//   job_node* j1 = new_node(1, 0,0,0,"first job",NULL, NULL, mysh);
+//   dlist_push_end(dl, j1);
+//   job_node* j2 = new_node(2,0,1,0,"second job", NULL, NULL, mysh);
+//   insert_after(j1, j2);
+//   job_node* j3 = new_node(3,0,2,0,"thrid job", NULL, NULL, mysh);
+//   insert_after(j2,j3);
+//   job_node* j4 = new_node(4,0,3,0, "fourth job", NULL,NULL, mysh);
+//   insert_after(j3, j4);
+//   job_node* j5 = new_node(5,0,4,0, "5th job", NULL,NULL, mysh);
+//   insert_after(j4, j5);
+//   job_node* j12 = new_node(0,0,5,0,"after 1st before 2nd", NULL,NULL, mysh);
+//   job_node* h = dl->head;
+//   dlist_push_end(dl, j2);
+// 	dlist_push_end(dl, j3);
+// 	// dlist_remove(dl, 1);
+//
+//   // printf("%s\n",(dl->tail)->original_input );
+//   while (h){
+//     dlist_push_end(dl, h);
+//     printf(h->original_input);
+//     printf("\n" );
+//     h = h->next;
+//   }
+//   printf("%d\n",dlist_size(dl) );
+//   dlist_insert(dl,1, j12);
+//   dlist_remove(dl, 2);
+//   h = j1;
+//   // while (h){
+//   //   printf(h->original_input);
+//   //   printf("\n" );
+//   //   h = h->next;
+//   // }
+//   delete_node(j1);
+// }
+
 
 /*
 int i = 0;

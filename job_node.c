@@ -96,9 +96,9 @@ job_node* jobnode_deepcopy(job_node* n){
   j->status = n-> status;
   j->pid = n->pid;
   j->gpid = n->gpid;
-  j->terminal = n->terminal;
+  j->jmode = n->jmode;
   j->original_input = n->original_input;
-  j->next = NULL;n->next
+  j->next = NULL;
   j->prev = NULL;
 }
 
