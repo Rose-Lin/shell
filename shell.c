@@ -91,6 +91,7 @@ void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
 	sigaddset(&sset, SIGCHLD);
 
 	if(status == CLD_EXITED) {
+
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -188,7 +189,7 @@ int update_list(pid_t pid, int flag) {
 }
 
 
-/* ========================= for "jobs" command =================== */
+/* ========================= for "jobs" command ========================= */
 void print_jobs(dlist jobs) {
 	job_node* top = get_head(jobs);
 	if(jobs == NULL) {
@@ -218,76 +219,107 @@ char* read_input() {
     input = NULL;
   }
 
+	printf("4\n");
 	job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
+	printf("5\n");
 	jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
-	strncpy(jn->original_input, input, strlen(input));
+	sprintf(jn->original_input, input);
 	jn->original_input[strlen(input)] = '\0';
 	dlist_push_end(all_joblist, jn);
   return input;
 }
 
-Parse_output parse_input(char* input, char* delim, char** tasks) {
-	Parse_output s;
+parse_output* parse_input(char* input, char* delim) {
 	char* cur = input;
 	s.total = 0;
 	int size = BUFSIZE;
+	parse_output* po = malloc(sizeof(struct parse_output));
+	if(po == NULL) {
+		printf("malloc failed\n");
+		return NULL;
+	}
 	struct tokenizer* t = init_tokenizer(input, delim);
 	char* token = get_next_token(t);
-	s.tasks = malloc(sizeof(char*) * size);
-	if (token == NULL){
-		int strlength = strlen(cur) - strlen(token);
-		int malloclength = strlength + 1;
-		char* cur_token = malloc(sizeof(char) *  malloclength);
-		strncpy(cur_token, cur, strlength);
-		if(*token == '&') {
-				cur_token += '&';
+	po->tasks = (char**)malloc(sizeof(char*) * size);
+	if(token == NULL) {
+		int len = strlen(input);
+		if((po->tasks[total] = malloc(sizeof(char) *  len)) == NULL) {
+			printf("malloc failed\n");
+			return NULL;
 		}
-		cur_token[malloclength - 1] = '\0';
-		s.tasks[s.total] = cur_token;
-		s.total += 1;
-		return s;
+		sprintf(po->tasks[total], input);
+		po->tasks[total][len] = '\0';
+		po->num = 1;
+		return po;
+	} else if (strcmp(token, "\n") == 0) {
+		int len = strlen(input) - 1;
+		if(len == 0) {
+			free(po->tasks);
+			free(po);
+			return NULL;
+		}
+		if((po->tasks[total] = malloc(sizeof(char) *  strlen(input))) == NULL) {
+			printf("malloc failed\n");
+			return NULL;
+		}
+		sprintf(po->tasks[total], input);
+		po->tasks[total][len] = '\0';
+		po->num = 1;
+		return po;
 	}
-	while(token != NULL) {
+
+	while(token != NULL && strcmp(token, "\n") != 0) {
 		int strlength = strlen(cur) - strlen(token);
 		int malloclength = strlength + 1;
-		if(*token == '&') { //if the current one is background job
+		if(token[strlen(token) - 1] == '&') { //if the current one is background job
 			malloclength ++;
 		}
-		char* cur_token = malloc(sizeof(char) *  malloclength);
-		strncpy(cur_token, cur, strlength);
-		if(*token == '&') {
-				cur_token += '&';
+		po->tasks[total] = malloc(sizeof(char) *  malloclength);
+		sprintf(po->tasks[total], input);
+		if(token[strlen(token) - 1] == '&') {
+				po->tasks[total] += '&';
 		}
-		cur_token[malloclength - 1] = '\0';
-		s.tasks[s.total] = cur_token;
+		po->tasks[total][malloclength - 1] = '\0';
 
 		s.total += 1;
 		if(s.total >= BUFSIZE) {
 			size += BUFSIZE;
-			s.tasks = (char**)realloc(s.tasks, size);
+			po->tasks = (char**)realloc(po->tasks, size);
 		}
 		token = get_next_token(t);
 	}
-	return s;
+	po->num = total + 1;
+	return po;
 }
 
 
 /* ============================== executions =============================== */
+
 int execute(char* task) {
-	char** jobargs = NULL;
-	int argnum = parse_input->(task, " ", jobargs);
-	char** bgjob = NULL;
-	struct termios tmode;
-	int bg = parse_input(task, "&", bgjob);
+	int bg = FALSE;
+	printf("task in execute is %s\n", task);
+	parse_output* jobs = parse_input(task, " ");
+	parse_output* bgjob = parse_input(task, "&");
+
+	if(bgjob->num == 1 && bgjob->tasks[0][strlen(bgjob->tasks[0]) - 1] == '&') {
+		bg = TRUE;
+	} else if(bgjob->num  > 1) {
+		bg = TRUE;
+	}
+	// !!!!! free bgjob
 	printf("current job is %d background or not\n", bg);
-	free(bgjob);
-	if(argnum == 0) {
+
+	if(jobs->num == 0) {
 		printf("No input\n");
 		return TRUE;
 	}
 
 	pid_t pid = fork();
-	if(pid == 0) {
+	if(pid < 0) {
+		perror("Fork failed \n");
+		return TRUE;
+	}
+	else if(pid == 0) {
 		pid_t chpid = getpid();
 		pid_t chgid;
 		int status = bg == TRUE ? background : foreground ;
@@ -314,8 +346,7 @@ int execute(char* task) {
       dup2 (errfile, STDERR_FILENO);
       close (errfile);
     }
-		*/
-
+*/
 		// unblock signals for childpid
 		signal (SIGINT, SIG_DFL);
 		signal (SIGQUIT, SIG_DFL);
@@ -324,8 +355,7 @@ int execute(char* task) {
 		signal (SIGTTOU, SIG_DFL);
 		signal (SIGTERM, SIG_DFL);
 
-		tcgetattr(STDOUT_FILENO, &tmode);
-		newjob->jmode = tmode;
+		tcgetattr(STDOUT_FILENO, &newjob->jmode);
 		dlist_push_end(all_joblist, newjob);
 
 		if(bg) {
@@ -334,20 +364,23 @@ int execute(char* task) {
 			njobcpy->index = dlist_size(sus_bg_jobs) + 1;
 			dlist_push_end(sus_bg_jobs, njobcpy);
 
-			if(execvp(jobargs[0], jobargs) < 0) {
+			if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
 				perror("Execution errror: ");
 			}
-			free(jobargs);
+			// free this jobs
 			exit(0);
 
 		} else {
+		  printf("in here %s execution\n", jobs->tasks[0]);
+		  tcsetattr(mysh_fd, TCSANOW, &newjob->jmode);
+		  tcsetpgrp(mysh_fd, chgid);
 
-			tcsetpgrp(mysh_fd, chgid);
-			tcsetattr(mysh_fd, TCSADRAIN, &newjob->jmode);
-			if(execvp(jobargs[0], jobargs) < 0) {
+			if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
 				perror("Execution errror: ");
 			}
-			free(jobargs);
+
+			//free the jobs
+			//free(jobargs);
 			exit(0);
 
 		}
@@ -357,11 +390,12 @@ int execute(char* task) {
 		if(bg) {
 			waitpid(pid, &stat, WNOHANG);
 		} else {
+		  tcsetpgrp(STDIN_FILENO, pid);
 			waitpid(pid, &stat, WUNTRACED);
 			if(WIFSTOPPED(stat)){
 				update_list(pid, fg_to_sus);
 				tcsetpgrp(mysh_fd, getpgid(getpid()));
-				tcsetattr(mysh_fd, TCSADRAIN, &tmode);
+				tcsetattr(mysh_fd, TCSANOW, &mysh);
 			}
 		}
 	}
@@ -370,26 +404,28 @@ int execute(char* task) {
 
 
 int execute_input(char* task) {
-	char** processes = NULL;
-	parse_input(task, " ", processes);
-	printf("task is %s", task);
-	if(strcmp(processes[0], "jobs") == 0) {
+	int result = TRUE;
+	parse_output* p = parse_input(task, " ");
+	printf("current task is %s\n", p->tasks[0]);
+	if(strcmp(p->tasks[0], "jobs") == 0) {
 		print_jobs(sus_bg_jobs);
 		// free processes
-		return TRUE;
-	} else if(strcmp(processes[0], "bg") == 0) {
+	} else if(strcmp(p->tasks[0], "bg") == 0) {
 		printf("to be implemented\n");
-	} else if(strcmp(processes[0], "fg") == 0) {
+	} else if(strcmp(p->tasks[0], "fg") == 0) {
 		printf("to be implemented\n");
-	} else if (strcmp(processes[0], "kill") == 0) {
+	} else if (strcmp(p->tasks[0], "kill") == 0) {
 		printf("to be implemented\n");
-	} else {
+	} else if(strcmp(p->tasks[0], "exit") == 0) {
+		// need to free p
+		result = FALSE;
+	}else {
 
 		printf("not yet\n");
 		// after fork needs to store the termios immediately
 		execute(task);
 	}
-	return TRUE;
+	return result;
 }
 
 
@@ -399,8 +435,22 @@ void free_joblists() {
 	dlist_free(all_joblist);
 }
 
+void free_parser(parse_output* po) {
+	if(po != NULL) {
+		if(po->num > 0) {
+			int index = 0;
+			for(int i = 0; i < po->num; i++) {
+				free(po->tasks[index]);
+			}
+		}
+		free(po->tasks);
+	}
+	free(po);
+}
+
 int main(int argc, char* argv[]){
 	// sets up
+  set_up_signals();
 	int run = FALSE;
 	shell_pid = getpid();
 	if(setpgid(shell_pid, shell_pid) < 0) {
@@ -416,25 +466,33 @@ int main(int argc, char* argv[]){
 	}
 	init_sems();
 	init_joblists();
+
 	tcgetattr(mysh_fd, &mysh);
 
 	do {
 		// starts executing
 		// check if need to store the shell termios here
 		char* input = read_input();
-		char** multijobs = NULL; // needs to free
-		Parse_output s;
-		s = parse_input(input, ";", multijobs);
-		for (int i = 0; i < s.total; i++) {
-			char** curjob = NULL;  // needs to free
-			Parse_output po;
-			po = parse_input(s.tasks[i], "&", curjob);
-			printf("%d\n", po.total);
-			for(int j = 0; j < po.total; j++) {
-				run = execute_input(po.tasks[0]);
+		if(input == NULL) {
+			printf("No input \n");
+			run = TRUE;
+			continue;
+		}
+		parse_output* nonewline = parse_input(input, "\n");
+		if(nonewline == NULL) {
+			printf("No input \n");
+			run = TRUE;
+			continue;
+		}
+		parse_output* job = parse_input(nonewline->tasks[0], ";");
+		for (int i = 0; i < job->num; i++) {
+			parse_output* p = parse_input(job->tasks[i], "&");
+			for(int j = 0; j < p->num; j++) {
+				run = execute_input(p->tasks[0]);
 			}
 			// free curjob
 		}
+		//printf("before free input 443\n");
 		free(input);
 		// check if need to restore the shell termios here
 		// free multijobs
