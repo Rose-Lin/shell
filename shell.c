@@ -368,7 +368,7 @@ int execute_input(char* task) {
 	} else if (strcmp(processes[0], "kill") == 0) {
 		printf("to be implemented\n");
 	} else {
-		
+
 		printf("not yet\n");
 		// after fork needs to store the termios immediately
 		execute(task);
@@ -387,6 +387,7 @@ int main(int argc, char* argv[]){
 	// sets up
 	int run = FALSE;
 	shell_pid = getpid();
+	printf("1");
 	if(setpgid(shell_pid, shell_pid) < 0) {
 		perror("Reset shell gpid failed\n");
 		exit(FALSE);
@@ -404,6 +405,7 @@ int main(int argc, char* argv[]){
 		// starts executing
 		// check if need to store the shell termios here
 		char* input = read_input();
+		printf("2");
 		char** multijobs = NULL; // needs to free
 		int num_jobs = parse_input(input, ";", multijobs);
 		for (int i = 0; i < num_jobs; i++) {
