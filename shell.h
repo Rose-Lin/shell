@@ -1,3 +1,8 @@
+typedef struct parse_output{
+  int num;
+  char** tasks;
+}parse_output;
+
 
 void init_sems();  // checked
 
@@ -24,10 +29,10 @@ char* read_input(); // simply read in input   // checked
 
 int check_special_symbols(char* input); // check for special characters  //checked
 
-int parse_input(char* input, char* delim, char** store); // allocate an global array for storing tokens //checked
+parse_output parse_input(char* input, char* delim); // allocate an global array for storing tokens //checked
 
-int execute(char*);
+//int execute(char*);
 
-int execute_input(char* task);
+//int execute_input(char* task);
 
 int exeute_bg(char** tasks); // needs to parse %
