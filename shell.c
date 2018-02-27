@@ -86,31 +86,31 @@ void init_joblists() {
 
 
 /* ========================== Handle Signals ============================== */
-void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
+void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
   pid_t childpid = sg->si_pid;
   int status = sg->si_code;
   if(status == CLD_EXITED) {
     update_list(childpid, terminated);
-    return NULL;
+    return;
   } else if (status == CLD_KILLED) {
     update_list(childpid, terminated);
-    return NULL;
+    return;
   } else if (status == CLD_STOPPED) {
     update_list(childpid, fg_to_sus);
-    return NULL;
+    return;
   } else if (status == CLD_CONTINUED) {
     update_list(childpid, bg_to_fg);
-    return NULL;
+    return;
   } else if (status == CLD_TRAPPED) {
     printf("child %d got trapped\n", childpid);
-    return NULL;
+    return;
   } else if(status == CLD_DUMPED) {
     printf("child %d got dumped\n", childpid);
-    return NULL;
+    return;
   } else {
 		printf("the status in signal handler is %d\n", status);
 	}
-  return NULL;
+  return;
 }
 
 int set_up_signals() {
@@ -126,7 +126,7 @@ int set_up_signals() {
   sigprocmask(SIG_BLOCK, &shellmask, NULL);
 
   sa.sa_flags = SA_SIGINFO | SA_RESTART;
-  // sa.sa_sigaction = &sigchld_handler;
+ 	sa.sa_sigaction = sigchld_handler;
   sigaction(SIGCHLD, &sa, NULL);
   return TRUE;
 }
@@ -193,91 +193,6 @@ void print_jobs(dlist jobs) {
 }
 
 
-/* ========================== read and parse input ============================ */
-
-// read in the input and add one jobnode(with original input)
-char* read_input() {
-  size_t readn;
-  char* input = NULL;
-  printf("mysh > ");
-  if(getline(&input, &readn, stdin) < 0) {
-    printf("getline from stdin failed! \n");
-    free(input);
-    input = NULL;
-  }
-
-  printf("4\n");
-  job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
-  printf("5\n");
-  jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
-  sprintf(jn->original_input, input);
-  jn->original_input[strlen(input)] = '\0';
-  dlist_push_end(all_joblist, jn);
-  return input;
-}
-
-parse_output* parse_input(char* input, char* delim) {
-  char* cur = input;
-  int total = 0;
-  int size = BUFSIZE;
-  parse_output* po = malloc(sizeof(struct parse_output));
-  if(po == NULL) {
-    printf("malloc failed\n");
-    return NULL;
-  }
-  struct tokenizer* t = init_tokenizer(input, delim);
-  char* token = get_next_token(t);
-  po->tasks = (char**)malloc(sizeof(char*) * size);
-  if(token == NULL) {
-    int len = strlen(input);
-    if((po->tasks[total] = malloc(sizeof(char) *  len)) == NULL) {
-      printf("malloc failed\n");
-      return NULL;
-    }
-    sprintf(po->tasks[total], input);
-    po->tasks[total][len] = '\0';
-    po->num = 1;
-    return po;
-  } else if (strcmp(token, "\n") == 0) {
-    int len = strlen(input) - 1;
-    if(len == 0) {
-      free(po->tasks);
-      free(po);
-      return NULL;
-    }
-    if((po->tasks[total] = malloc(sizeof(char) *  strlen(input))) == NULL) {
-      printf("malloc failed\n");
-      return NULL;
-    }
-    sprintf(po->tasks[total], input);
-    po->tasks[total][len] = '\0';
-    po->num = 1;
-    return po;
-  }
-
-  while(token != NULL && strcmp(token, "\n") != 0) {
-    int strlength = strlen(cur) - strlen(token);
-    int malloclength = strlength + 1;
-    if(*token == '&') { //if the current one is background job
-      malloclength ++;
-    }
-		printf("malloc length is %d\n", malloclength);
-    po->tasks[total] = malloc(sizeof(char) *  malloclength);
-		sprintf(po->tasks[total], "%-*s", malloclength - 1, cur);
-    po->tasks[total][malloclength - 1] = '\0';
-    total += 1;
-    if(total >= BUFSIZE) {
-      size += BUFSIZE;
-      po->tasks = (char**)realloc(po->tasks, size);
-    }
-		cur = token;
-    token = get_next_token(t);
-  }
-  po->num = total;
-  return po;
-}
-
-
 /* ============================== executions =============================== */
 
 int execute(char* task) {
@@ -341,7 +256,7 @@ int execute(char* task) {
     signal (SIGTERM, SIG_DFL);
 
     if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
-      perror("Execution errror ");
+      perror("Execution error ");
 			exit(0);
 			return TRUE;
     }
@@ -477,7 +392,7 @@ int main(int argc, char* argv[]){
       // free curjob
     }
     //printf("before free input 443\n");
-    free(input);
+   	free(input);
     // check if need to restore the shell termios here
     // free multijobs
   } while (run);
