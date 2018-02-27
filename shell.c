@@ -87,6 +87,7 @@ void init_joblists() {
 
 /* ========================== Handle Signals ============================== */
 void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
+<<<<<<< HEAD
   pid_t childpid = sg->si_pid;
   int status = sg->si_code;
   if(status == CLD_EXITED) {
@@ -109,6 +110,49 @@ void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
     return NULL;
   }
   return NULL;
+=======
+	pid_t childpid = sg->si_pid;
+	int status = sg->si_code;
+	sigset_t sset;
+	sigaddset(&sset, SIGCHLD);
+
+	if(status == CLD_EXITED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		update_list(childpid, terminated);
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return NULL;
+
+	} else if (status == CLD_KILLED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		update_list(childpid, terminated);
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return NULL;
+
+	} else if (status == CLD_STOPPED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		update_list(childpid, fg_to_sus);
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return NULL;
+
+	} else if (status == CLD_CONTINUED) {
+
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		update_list(childpid, bg_to_fg);
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return NULL;
+
+	} else if (status == CLD_TRAPPED) {
+		printf("child %d got trapped\n", childpid);
+		return NULL;
+	} else if(status == CLD_DUMPED) {
+		printf("child %d got dumped\n", childpid);
+		return NULL;
+	}
+	return NULL;
+>>>>>>> 6c4bf9318c388bd1c47ee5e7870f68e943965a0f
 }
 
 int set_up_signals() {
