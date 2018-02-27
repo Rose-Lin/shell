@@ -297,6 +297,7 @@ parse_output* parse_input(char* input, char* delim) {
 
 int execute(char* task) {
 	int bg = FALSE;
+	printf("task in execute is %s\n", task);
 	parse_output* jobs = parse_input(task, " ");
 	parse_output* bgjob = parse_input(task, "&");
 
@@ -370,12 +371,14 @@ int execute(char* task) {
 			exit(0);
 
 		} else {
-
-			tcsetpgrp(mysh_fd, chgid);
-			tcsetattr(mysh_fd, TCSANOW, &newjob->jmode);
+		  printf("in here %s execution\n", jobs->tasks[0]);
+		  tcsetattr(mysh_fd, TCSANOW, &newjob->jmode);
+		  tcsetpgrp(mysh_fd, chgid);
+			
 			if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
 				perror("Execution errror: ");
 			}
+				
 			//free the jobs
 			//free(jobargs);
 			exit(0);
@@ -387,6 +390,7 @@ int execute(char* task) {
 		if(bg) {
 			waitpid(pid, &stat, WNOHANG);
 		} else {
+		  tcsetpgrp(STDIN_FILENO, pid);
 			waitpid(pid, &stat, WUNTRACED);
 			if(WIFSTOPPED(stat)){
 				update_list(pid, fg_to_sus);
@@ -402,6 +406,7 @@ int execute(char* task) {
 int execute_input(char* task) {
 	int result = TRUE;
 	parse_output* p = parse_input(task, " ");
+	printf("current task is %s\n", p->tasks[0]);
 	if(strcmp(p->tasks[0], "jobs") == 0) {
 		print_jobs(sus_bg_jobs);
 		// free processes
@@ -445,6 +450,7 @@ void free_parser(parse_output* po) {
 
 int main(int argc, char* argv[]){
 	// sets up
+  set_up_signals();
 	int run = FALSE;
 	shell_pid = getpid();
 	if(setpgid(shell_pid, shell_pid) < 0) {
