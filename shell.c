@@ -139,25 +139,26 @@ int update_list(pid_t pid, int flag) {
   sigprocmask(SIG_BLOCK, &sset, NULL);
 
   printf("in updating the job list\n");
-  if(flag == terminated) {
-    int result = dlist_remove_bypid(sus_bg_jobs, pid);
-    sigprocmask(SIG_UNBLOCK, &sset, NULL);
-    if(result == FALSE) {
-      printf(" child %d is not in the 'job' list\n", pid);
-      return FALSE;
-    }
-    return TRUE;
-  }
 
-  if(flag == bg_to_fg) {
-    int result = dlist_remove_bypid(sus_bg_jobs, pid);
-    sigprocmask(SIG_UNBLOCK, &sset, NULL);
-    if(result == FALSE) {
-      printf(" child %d is not in the 'job' list\n", pid);
-      return FALSE;
-    }
-    return TRUE;
-  }
+	// if(flag == terminated) {
+  //   int result = dlist_remove_bypid(sus_bg_jobs, pid);
+  //   sigprocmask(SIG_UNBLOCK, &sset, NULL);
+  //   if(result == FALSE) {
+  //     printf(" child %d is not in the 'job' list\n", pid);
+  //     return FALSE;
+  //   }
+  //   return TRUE;
+  // }
+	//
+  // if(flag == bg_to_fg) {
+  //   int result = dlist_remove_bypid(sus_bg_jobs, pid);
+  //   sigprocmask(SIG_UNBLOCK, &sset, NULL);
+  //   if(result == FALSE) {
+  //     printf(" child %d is not in the 'job' list\n", pid);
+  //     return FALSE;
+  //   }
+  //   return TRUE;
+  // }
 
 	/*if(flag == fg_to_sus) {
     job_node* find = dlist_get_bypid(all_joblist, pid);
@@ -303,6 +304,7 @@ int execute_input(char* task) {
   parse_output* p = parse_input(task, " ");
   printf("current task is %s\n", p->tasks[0]);
   if(strcmp(p->tasks[0], "jobs") == 0) {
+		printf("-------------------------------------jobs\n");
     print_jobs(sus_bg_jobs);
     // free processes
   } else if(strcmp(p->tasks[0], "bg") == 0) {
@@ -387,7 +389,6 @@ int main(int argc, char* argv[]){
       for(int j = 0; j < p->num; j++) {
 				printf("start running in main\n");
 				run = execute_input(p->tasks[0]);
-				printf("finish running in main\n");
       }
       // free curjob
     }
