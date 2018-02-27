@@ -484,11 +484,6 @@ int main(int argc, char* argv[]){
   // clean up everything
 }
 
-void* create_shared_memory(size_t size){
-  int protection = PROT_READ | PROT_WRITE;
-  int visibility = MAP_ANONYMOUS | MAP_SHARED;
-  return mmap(NULL, size, protection, visibility, 0, 0);
-}
 // int check_special_symbols(char* input) {
 // 	execjob_num = 0;
 // 	struct tokenizer* t = init_tokenizer(input, special_delim);
@@ -538,22 +533,3 @@ void* create_shared_memory(size_t size){
 //   // }
 //   delete_node(j1);
 // }
-
-
-/*
-  int i = 0;
-  void* shmem_all_joblist = create_shared_memory(sizeof(dlist*));
-  void* shmem_background_joblist = create_shared_memory(sizeof(dlist*));
-  void* shmem_suspended_joblist = create_shared_memory(sizeof(dlist*));
-  memcpy(shmem_all_joblist, (void*)&all_joblist, sizeof(dlist*));
-  memcpy(shmem_suspended_joblist,(void*)&suspended_joblist,sizeof(dlist*));
-  memcpy(shmem_background_joblist,(void*)&background_joblist,sizeof(dlist*));
-  size_t byte_num = 0;
-  size_t buff_size = BUFSIZE;
-  char* buffer = NULL;
-  // byte_num = getline(&buffer, &buff_size, STDIN_FILENO);
-  char* delimiter = ";& ";
-  tokenizer* t = init_tokenizer("se xdfnsfeos;skei&siefn;se", delimiter);
-  printf("%s\n", get_next_token(t));
-  test_job_list();
-*/
