@@ -26,6 +26,8 @@ int check_special_symbols(char* input); // check for special characters  //check
 
 int parse_input(char* input, char* delim, char** store); // allocate an global array for storing tokens //checked
 
+int execute(char*);
+
 int execute_input(char* task);
 
 int exeute_bg(char** tasks); // needs to parse %
