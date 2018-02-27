@@ -80,7 +80,7 @@ void free_joblists() {
 	dlist_free(all_joblist);
 }
 
-void sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
+void* sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
 	pid_t childpid = sg->si_pid;
 	int status = sg->si_code;
 	sigset_t sset;
@@ -88,7 +88,6 @@ void sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
 	int update_result;
 
 	if(status == CLD_EXITED) {
-
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_result = update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -133,15 +132,15 @@ int update_list(pid_t pid, int flag) {
 	}
 
 	if(flag == fg_to_sus) {
-		job_node* find = dlist_get_bypid(all_joblist);
-		if(target == NULL) {
+		job_node* find = dlist_get_bypid(all_joblist, pid);
+		if(find == NULL) {
 			printf("yao si le mei zhao dao \n");
 			return FALSE	;
 		}
 		job_node* target = jobnode_deepcopy(find);
 		target->status = suspended;
 		sem_wait(job);
-		dlist_push_end(dlist, target);
+		dlist_push_end(sus_bg_jobs, target);
 		sem_post(job);
 		return TRUE;
 	}
