@@ -176,6 +176,27 @@ int update_list(pid_t pid, int flag) {
   return TRUE;
 }
 
+/* =============================== read in ==================================== */
+// read in the input and add one jobnode(with original input)
+char* read_input() {
+  size_t readn;
+  char* input = NULL;
+  printf("mysh > ");
+  if(getline(&input, &readn, stdin) < 0) {
+    printf("getline from stdin failed! \n");
+    free(input);
+    input = NULL;
+  }
+
+  printf("4\n");
+  job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
+  printf("5\n");
+  jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
+  sprintf(jn->original_input, input);
+  jn->original_input[strlen(input)] = '\0';
+  dlist_push_end(all_joblist, jn);
+  return input;
+}
 
 /* ========================= for "jobs" command ========================= */
 void print_jobs(dlist jobs) {
@@ -195,7 +216,226 @@ void print_jobs(dlist jobs) {
 
 
 /* ============================== executions =============================== */
+int bring_tofg(parser_output* p) {
+	int result = TRUE;
+}
 
+int perform_task(parser_output* p) {
+	int result = TRUE;
+	if(strcmp(p->tasks[0], "jobs") == 0) {
+		printf("-----------------bgbgbgbgbg--------------------jobs\n");
+		print_jobs(sus_bg_jobs);
+		// free processes
+	} else if(strcmp(p->tasks[0], "bg") == 0) {
+		printf("to be implemented\n");
+	} else if(strcmp(p->tasks[0], "fg") == 0) {
+		printf("to be implemented\n");
+	} else if (strcmp(p->tasks[0], "kill") == 0) {
+		printf("to be implemented\n");
+	} else if(strcmp(p->tasks[0], "exit") == 0) {
+		// need to free p
+		result = FALSE;
+	}else {
+		printf("not yet\n");
+		if(execvp(p->tasks[0], p->tasks) < 0) {
+			perror("Execution error ");
+			// free p;
+			return TRUE;
+		}
+	}
+	return result;
+}
+
+
+int execute_bg(char* task) {
+  int result = TRUE;
+  parse_output* p = parse_input(task, " ");
+	if(p->num == 0) {
+		printf("Invalid Input\n");
+		return TRUE;
+	}
+  printf("current task is %s in background bbbbbbbbbbbbbbb\n", p->tasks[0]);
+
+	pid_t pid = fork();
+	if(pid < 0) {
+		perror("Fork failed: ");
+		return TRUE;
+	} else if (pid == 0) {
+		// in child
+		pid_t chpid = getpid();
+		if(setpgid(chpid, chpid) < 0 ) {
+      perror("set child gid failed: ");
+    }
+
+		signal (SIGINT, SIG_DFL);
+		signal (SIGQUIT, SIG_DFL);
+		signal (SIGTSTP, SIG_DFL);
+		signal (SIGTTIN, SIG_DFL);
+		signal (SIGTTOU, SIG_DFL);
+		signal (SIGTERM, SIG_DFL);
+
+		result = perform_task(p);
+		//need free(p)
+		exit(0);
+	} else if (pid > 0) {
+		int stat;
+		sigset_t sset;
+		sigaddset(&sset, SIGCHLD);
+		printf("parent is creating\n");
+		job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, pid, NOTKNOWN, task, NULL, NULL);
+		printf("parent finish creating\n");
+		newjob->gpid = getpgid(pid);
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		dlist_push_end(sus_bg_jobs, newjob);
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		printf("parent finish adding\n");
+		waitpid(pid, &stat, WNOHANG);
+	}
+	tcsetpgrp(mysh_fd, getpgid(getpid()));
+	tcsetattr(mysh_fd, TCSADRAIN, &mysh);
+}
+
+int execute_fg(char* task) {
+	int result = TRUE;
+  parse_output* p = parse_input(task, " ");
+	if(p->num == 0) {
+		printf("Invalid Input\n");
+		return TRUE;
+	}
+  printf("current task is %s in foreground ffffffffffffffffffffffffffff\n", p->tasks[0]);
+
+	pid_t pid = fork();
+	if(pid < 0) {
+		perror("Fork failed: ");
+		return TRUE;
+	} else if (pid == 0) {
+		// in child
+		pid_t chpid = getpid();
+		if(setpgid(chpid, chpid) < 0 ) {
+      perror("set child gid failed: ");
+    }
+
+		signal (SIGINT, SIG_DFL);
+		signal (SIGQUIT, SIG_DFL);
+		signal (SIGTSTP, SIG_DFL);
+		signal (SIGTTIN, SIG_DFL);
+		signal (SIGTTOU, SIG_DFL);
+		signal (SIGTERM, SIG_DFL);
+
+		result = perform_task(p);
+		//need free(p)
+		exit(0);
+	} else if (pid > 0) {
+		int stat;
+		sigset_t sset;
+		sigaddset(&sset, SIGCHLD);
+		waitpid(pid, &stat, WUNTRACED);
+		printf("in patent\n");
+		if(WIFSTOPPED(stat)){
+			struct termios childt;
+			tcgetattr(STDOUT_FILENO, &childt);
+			job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, suspended, pid,  getpgid(pid), task, NULL, NULL);
+			newjob->jmode = childt;
+			sigprocmask(SIG_BLOCK, &sset, NULL);
+			dlist_push_end(sus_bg_jobs, newjob);
+			sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		}
+		tcsetpgrp(mysh_fd, getpgid(getpid()));
+		tcsetattr(mysh_fd, TCSADRAIN, &mysh);
+	}
+	return result;
+}
+
+/* ============================ clean up stuff ============================= */
+void free_joblists() {
+  dlist_free(sus_bg_jobs);
+  dlist_free(all_joblist);
+}
+
+void free_parser(parse_output* po) {
+  if(po != NULL) {
+    if(po->num > 0) {
+      int index = 0;
+      for(int i = 0; i < po->num; i++) {
+	free(po->tasks[index]);
+      }
+    }
+    free(po->tasks);
+  }
+  free(po);
+}
+
+int main(int argc, char* argv[]){
+  // sets up
+  set_up_signals();
+  int run = FALSE;
+  shell_pid = getpid();
+  if(setpgid(shell_pid, shell_pid) < 0) {
+    perror("Reset shell gpid failed\n");
+    exit(FALSE);
+  }
+  shell_gpid = getpgid(shell_pid);
+  if(shell_gpid != tcgetpgrp(mysh_fd)) {
+    int result = tcsetpgrp(mysh_fd, shell_gpid);
+    if(result < 0) {
+      perror("Setting shell to foreground failed\n");
+    }
+  }
+  init_joblists();
+  tcgetattr(mysh_fd, &mysh);
+
+  do {
+		char* input = read_input();
+		parse_ouput* newline = parse_input(input, "\n");
+		parse_output* jobs = parse_input(newline->tasks[0], ";");
+		int symbolnum = 0;
+		for(int i = 0; i < jobs->num; i++) {
+			if(strcmp(jobs->tasks[i], ";") == 0) {
+				jobs->tasks[i] = "";
+				symbolnum ++;
+			}
+		}
+		int jobnum = jobs->num - symbolnum;
+		char* job = jobs->tasks[0];
+		for(int i = 0; i < jobs->num; i++) {
+			job = jobs->tasks[i];
+			if(strcmp(job, "") != 0) {
+				break;
+			}
+		}
+
+		for(int i = 0; i < jobnum - 1; i++) {
+			parse_output* smalljob;
+			smalljob = parse_output(job, "&");
+			for(int j = 0; j < smalljob->num; j++) {
+				if(strcmp(smalljob->tasks[j], "&") != 0) {
+					if(j == smalljob->num - 1) {
+						execute_fg(smalljob->tasks[j]);
+					} else if(strcmp(smalljob->tasks[j+1], "&") == 0) {
+						execute_bg(smalljob->tasks[j]);
+					}
+				} else {
+					continue;
+				}
+			}
+			// free smalljob
+			job += 2;
+		}
+		// need to free newline, jobs
+		free(input);
+  } while (run);
+  // clean up everything
+}
+
+
+
+
+
+
+
+
+
+/*
 int execute(char* task) {
   int bg = FALSE;
   printf("task in execute is %s", task);
@@ -231,7 +471,7 @@ int execute(char* task) {
     if(setpgid(chpid, chpid) < 0 ) {
       perror("set child gid failed: ");
     }
-    /* no idea what is this
+     no idea what is this
        if (infile != STDIN_FILENO)
        {
        dup2 (infile, STDIN_FILENO);
@@ -247,7 +487,7 @@ int execute(char* task) {
        dup2 (errfile, STDERR_FILENO);
        close (errfile);
        }
-    */
+
     // unblock signals for childpid
     signal (SIGINT, SIG_DFL);
     signal (SIGQUIT, SIG_DFL);
@@ -299,106 +539,48 @@ int execute(char* task) {
 }
 
 
-int execute_input(char* task) {
-  int result = TRUE;
-  parse_output* p = parse_input(task, " ");
-  printf("current task is %s\n", p->tasks[0]);
-  if(strcmp(p->tasks[0], "jobs") == 0) {
-		printf("-------------------------------------jobs\n");
-    print_jobs(sus_bg_jobs);
-    // free processes
-  } else if(strcmp(p->tasks[0], "bg") == 0) {
-    printf("to be implemented\n");
-  } else if(strcmp(p->tasks[0], "fg") == 0) {
-    printf("to be implemented\n");
-  } else if (strcmp(p->tasks[0], "kill") == 0) {
-    printf("to be implemented\n");
-  } else if(strcmp(p->tasks[0], "exit") == 0) {
-    // need to free p
-    result = FALSE;
-  }else {
 
-    printf("not yet\n");
-    // after fork needs to store the termios immediately
-    result = execute(task);
-  }
-  return result;
-}
+*/
 
 
-/* ============================ clean up stuff ============================= */
-void free_joblists() {
-  dlist_free(sus_bg_jobs);
-  dlist_free(all_joblist);
-}
 
-void free_parser(parse_output* po) {
-  if(po != NULL) {
-    if(po->num > 0) {
-      int index = 0;
-      for(int i = 0; i < po->num; i++) {
-	free(po->tasks[index]);
-      }
-    }
-    free(po->tasks);
-  }
-  free(po);
-}
 
-int main(int argc, char* argv[]){
-  // sets up
-  set_up_signals();
-  int run = FALSE;
-  shell_pid = getpid();
-  if(setpgid(shell_pid, shell_pid) < 0) {
-    perror("Reset shell gpid failed\n");
-    exit(FALSE);
-  }
-  shell_gpid = getpgid(shell_pid);
-  if(shell_gpid != tcgetpgrp(mysh_fd)) {
-    int result = tcsetpgrp(mysh_fd, shell_gpid);
-    if(result < 0) {
-      perror("Setting shell to foreground failed\n");
-    }
-  }
-  init_joblists();
+/*
+do {
+	// starts executing
+	// check if need to store the shell termios here
+	char* input = read_input();
+	printf("the input in main is %s", input);
+	if(input == NULL) {
+		printf("No input \n");
+		run = TRUE;
+		continue;
+	}
+	parse_output* nonewline = parse_input(input, "\n");
+	if(nonewline == NULL) {
+		printf("No input \n");
+		run = TRUE;
+		continue;
+	}
+	parse_output* job = parse_input(nonewline->tasks[0], ";");
+	printf("the input in main after job parse is %s", job->tasks[0]);
+	for (int i = 0; i < job->num; i++) {
+		parse_output* p = parse_input(job->tasks[i], "&");
+		printf("the input in main after p parse is %s  num %d", p->tasks[0], p->num);
+		for(int j = 0; j < p->num; j++) {
+			printf("start running in main\n");
+			run = execute_input(p->tasks[0]);
+		}
+		// free curjob
+	}
+	//printf("before free input 443\n");
+	free(input);
+	// check if need to restore the shell termios here
+	// free multijobs
+} while (run);
+*/
 
-  tcgetattr(mysh_fd, &mysh);
 
-  do {
-    // starts executing
-    // check if need to store the shell termios here
-    char* input = read_input();
-		printf("the input in main is %s", input);
-    if(input == NULL) {
-      printf("No input \n");
-      run = TRUE;
-      continue;
-    }
-    parse_output* nonewline = parse_input(input, "\n");
-    if(nonewline == NULL) {
-      printf("No input \n");
-      run = TRUE;
-      continue;
-    }
-    parse_output* job = parse_input(nonewline->tasks[0], ";");
-		printf("the input in main after job parse is %s", job->tasks[0]);
-    for (int i = 0; i < job->num; i++) {
-      parse_output* p = parse_input(job->tasks[i], "&");
-			printf("the input in main after p parse is %s  num %d", p->tasks[0], p->num);
-      for(int j = 0; j < p->num; j++) {
-				printf("start running in main\n");
-				run = execute_input(p->tasks[0]);
-      }
-      // free curjob
-    }
-    //printf("before free input 443\n");
-   	free(input);
-    // check if need to restore the shell termios here
-    // free multijobs
-  } while (run);
-  // clean up everything
-}
 
 // int check_special_symbols(char* input) {
 // 	execjob_num = 0;

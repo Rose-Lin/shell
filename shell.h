@@ -1,13 +1,6 @@
-typedef struct parse_output{
-  int num;
-  char** tasks;
-}parse_output;
+#include "parser.h"
 
 void free_parser(parse_output*);
-
-void init_sems();  // checked
-
-void close_sems(); // checked
 
 void init_joblists(); // checked
 
@@ -15,25 +8,25 @@ void free_joblists(); // checked
 
 void print_jobs(dlist job);  // checked
 
+char* read_input();
+
 // signals
 int set_up_signals(); // sets up the signals for the shell
 
-void* sigchld_handler(int, siginfo_t*, void*); // signal handler for sigchld
+void sigchld_handler(int, siginfo_t*, void*); // signal handler for sigchld
 
 int update_list(pid_t gid, int flag);
 
 void test_job_list(); //testing joblist
 
-void* create_shared_memory(size_t size);
+//void* create_shared_memory(size_t size);
 
-char* read_input(); // simply read in input   // checked
+int perform_task(parser_output*);
 
-int check_special_symbols(char* input); // check for special characters  //checked
+int execute_bg(char*);
 
-parse_output* parse_input(char* input, char* delim); // allocate an global array for storing tokens //checked
+int execute_fg(char*);
 
-//int execute(char*);
+int bring_tofg(parser_output* p)
 
 //int execute_input(char* task);
-
-int exeute_bg(char** tasks); // needs to parse %
