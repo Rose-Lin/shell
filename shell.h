@@ -12,9 +12,9 @@ void print_jobs(dlist job);  // checked
 // signals
 int set_up_signals(); // sets up the signals for the shell
 
-void sigchld_handler(int, siginfo_t*, void*); // signal handler for sigchld
+void* sigchld_handler(int, siginfo_t*, void*); // signal handler for sigchld
 
-void update_list(pid_t gid, int flag);
+int update_list(pid_t gid, int flag);
 
 void test_job_list(); //testing joblist
 
