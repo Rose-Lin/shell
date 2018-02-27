@@ -3,6 +3,7 @@ typedef struct parse_output{
   char** tasks;
 }parse_output;
 
+void free_parser(parse_output*);
 
 void init_sems();  // checked
 
@@ -29,7 +30,7 @@ char* read_input(); // simply read in input   // checked
 
 int check_special_symbols(char* input); // check for special characters  //checked
 
-parse_output parse_input(char* input, char* delim); // allocate an global array for storing tokens //checked
+parse_output* parse_input(char* input, char* delim); // allocate an global array for storing tokens //checked
 
 //int execute(char*);
 
