@@ -87,38 +87,30 @@ void init_joblists() {
 
 /* ========================== Handle Signals ============================== */
 void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
-	pid_t childpid = sg->si_pid;
-	int status = sg->si_code;
-	sigset_t sset;
-	sigaddset(&sset, SIGCHLD);
-
-	if(status == CLD_EXITED) {
-		update_list(childpid, terminated);
-		return NULL;
-	} else if (status == CLD_KILLED) {
-		update_list(childpid, terminated);
-		return NULL;
-	} else if (status == CLD_STOPPED) {
-		sigprocmask(SIG_BLOCK, &sset, NULL);
-		update_list(childpid, fg_to_sus);
-		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-		return NULL;
-
-	} else if (status == CLD_CONTINUED) {
-
-		sigprocmask(SIG_BLOCK, &sset, NULL);
-		update_list(childpid, bg_to_fg);
-		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-		return NULL;
-
-	} else if (status == CLD_TRAPPED) {
-		printf("child %d got trapped\n", childpid);
-		return NULL;
-	} else if(status == CLD_DUMPED) {
-		printf("child %d got dumped\n", childpid);
-		return NULL;
+  pid_t childpid = sg->si_pid;
+  int status = sg->si_code;
+  if(status == CLD_EXITED) {
+    update_list(childpid, terminated);
+    return NULL;
+  } else if (status == CLD_KILLED) {
+    update_list(childpid, terminated);
+    return NULL;
+  } else if (status == CLD_STOPPED) {
+    update_list(childpid, fg_to_sus);
+    return NULL;
+  } else if (status == CLD_CONTINUED) {
+    update_list(childpid, bg_to_fg);
+    return NULL;
+  } else if (status == CLD_TRAPPED) {
+    printf("child %d got trapped\n", childpid);
+    return NULL;
+  } else if(status == CLD_DUMPED) {
+    printf("child %d got dumped\n", childpid);
+    return NULL;
+  } else {
+		printf("the status in signal handler is %d\n", status);
 	}
-	return NULL;
+  return NULL;
 }
 
 int set_up_signals() {
@@ -265,7 +257,6 @@ parse_output* parse_input(char* input, char* delim) {
   }
 
   while(token != NULL && strcmp(token, "\n") != 0) {
-		printf("cur is %s|\\\\   \n", cur);
     int strlength = strlen(cur) - strlen(token);
     int malloclength = strlength + 1;
     if(*token == '&') { //if the current one is background job
@@ -274,12 +265,7 @@ parse_output* parse_input(char* input, char* delim) {
 		printf("malloc length is %d\n", malloclength);
     po->tasks[total] = malloc(sizeof(char) *  malloclength);
 		sprintf(po->tasks[total], "%-*s", malloclength - 1, cur);
-
-		/*for(int i = 0; i < malloclength - 1; i++) {
-			po->tasks[total][i] = cur[i];
-		}*/
     po->tasks[total][malloclength - 1] = '\0';
-		printf("the job is %s\n", po->tasks[total]);
     total += 1;
     if(total >= BUFSIZE) {
       size += BUFSIZE;
@@ -297,18 +283,23 @@ parse_output* parse_input(char* input, char* delim) {
 
 int execute(char* task) {
   int bg = FALSE;
-  printf("task in execute is %s\n", task);
+  printf("task in execute is %s", task);
   parse_output* jobs = parse_input(task, " ");
   parse_output* bgjob = parse_input(task, "&");
 
   if(bgjob->num == 1 && bgjob->tasks[0][strlen(bgjob->tasks[0]) - 1] == '&') {
     bg = TRUE;
-		bgjob->tasks[0][strlen(bgjob->tasks[0]) - 1] = '\0';
+		char temp[strlen(bgjob->tasks[0])];
+		sprintf(temp, bgjob->tasks[0]);
+		sprintf(bgjob->tasks[0], "%-*s", (int)strlen(bgjob->tasks[0]) - 1, bgjob->tasks[0]);
+		bgjob->tasks[0][(int)(strlen(bgjob->tasks[0]) - 1)] = '\0';
   } else if(bgjob->num  > 1) {
+		sprintf(bgjob->tasks[0], "%-*s", (int)strlen(bgjob->tasks[0]) - 1, bgjob->tasks[0]);
+		bgjob->tasks[0][(int)(strlen(bgjob->tasks[0]) - 1)] = '\0';
     bg = TRUE;
   }
   // !!!!! free bgjob
-  printf("current job is %d background or not\n", bg);
+  printf("current job is %d background %s.  \n", bg, bgjob->tasks[0]);
 
   if(jobs->num == 0) {
     printf("No input\n");
@@ -352,17 +343,25 @@ int execute(char* task) {
 
     if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
       perror("Execution errror ");
-
+			exit(0);
+			return TRUE;
     }
     // free this jobs
     exit(0);
 
   } else if(pid > 0) {
     int stat;
-
+		sigset_t sset;
+		sigaddset(&sset, SIGCHLD);
     if(bg) {
+			printf("parent is creating\n");
       job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, pid, NOTKNOWN, task, NULL, NULL);
-      newjob->gpid = getpgid(pid);
+			printf("parent finish creating\n");
+			newjob->gpid = getpgid(pid);
+			sigprocmask(SIG_BLOCK, &sset, NULL);
+			dlist_push_end(sus_bg_jobs, newjob);
+			sigprocmask(SIG_UNBLOCK, &sset, NULL);
+			printf("parent finish adding\n");
       waitpid(pid, &stat, WNOHANG);
     } else {
       //tcsetpgrp(STDIN_FILENO, pid);
@@ -373,8 +372,6 @@ int execute(char* task) {
 				tcgetattr(STDOUT_FILENO, &childt);
 				job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, suspended, pid,  getpgid(pid), task, NULL, NULL);
 				newjob->jmode = childt;
-				sigset_t sset;
-				sigaddset(&sset, SIGCHLD);
 				sigprocmask(SIG_BLOCK, &sset, NULL);
 				dlist_push_end(sus_bg_jobs, newjob);
 				sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -464,7 +461,6 @@ int main(int argc, char* argv[]){
       continue;
     }
     parse_output* nonewline = parse_input(input, "\n");
-		printf("the input after nonewline in main is %s", nonewline->tasks[0]);
     if(nonewline == NULL) {
       printf("No input \n");
       run = TRUE;
