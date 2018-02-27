@@ -53,7 +53,7 @@ int execjob_num = 0; // number of jobs to be executed during one input
 
 // terminal attribute related globals
 pid_t shell_pid;
-pid-t shell_gpid;
+pid_t shell_gpid;
 struct termios mysh;
 int mysh_fd = STDIN_FILENO;
 
@@ -81,7 +81,7 @@ void free_joblists() {
 	dlist_free(all_joblist);
 }
 
-void* sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
+void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
 	pid_t childpid = sg->si_pid;
 	int status = sg->si_code;
 	sigset_t sset;
@@ -91,35 +91,35 @@ void* sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-		return;
+		return NULL;
 
 	} else if (status == CLD_KILLED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-		return;
+		return NULL;
 
 	} else if (status == CLD_STOPPED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, fg_to_sus);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-		return;
+		return NULL;
 
 	} else if (status == CLD_CONTINUED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, bg_to_fg);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-		return;
+		return NULL;
 
 	} else if (status == CLD_TRAPPED) {
 		printf("child %d got trapped\n", childpid);
-		return;
+		return NULL;
 	} else if(status == CLD_DUMPED) {
 		printf("child %d got dumped\n", childpid);
-		return;
+		return NULL;
 	}
 
 }
@@ -272,11 +272,11 @@ int main(int argc, char* argv[]){
 	int run = FALSE;
 	shell_pid = getpid();
 	if(setpgid(shell_pid, shell_pid) < 0) {
-		perror("Reset shell gid failed\n");
+		perror("Reset shell gpid failed\n");
 		exit(FALSE);
 	}
 	shell_gpid = getpgid(shell_pid);
-	if(shell_gpid != tcgetpgrip(mysh_fd)) {
+	if(shell_gpid != tcgetpgrp(mysh_fd)) {
 		int result = tcsetpgrp(mysh_fd, shell_gpid);
 		if(result < 0) {
 			perror("Setting shell to foreground failed\n");
@@ -292,7 +292,7 @@ int main(int argc, char* argv[]){
 		char** multi_jobs; // needs to free
 		int num_jobs = parse_input(input, ";", multi_jobs);
 		for (int i = 0; i < num_jobs; i++) {
-			char** curjob;  //needs to free
+			char** curjob;  // needs to free
 			int jobnum = parse_input(multi_jobs[i], "&", curjob);
 			for(int j = 0; j < jobnum; j++) {
 				run = execute_input(curjob[0]);
