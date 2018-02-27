@@ -32,6 +32,8 @@ void delete_node(job_node* n);
 // If not found: return NULL
 job_node* get_jobnode_bypid(job_node* head, pid_t pid);
 
+job_node* jobnode_deepcopy(job_node* n);
+
 // return a pointer to the indexth node in the list. If index is
 // the length of the list, this returns NULL, but does not error.
 // Precondition: the list has at least index number of nodes

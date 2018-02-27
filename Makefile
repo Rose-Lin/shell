@@ -4,16 +4,16 @@ shell: shell.o dlist.o job_node.o tokenizer.o
 	gcc -o shell shell.o dlist.o job_node.o tokenizer.o -lpthread -lrt
 
 shell.o: shell.c shell.h dlist.h job_node.h tokenizer.h
-	gcc -c shell.c
+	gcc -c -Wall shell.c
 
 dlist.o: dlist.c dlist.h job_node.h
-	gcc -c dlist.c
+	gcc -c -Wall dlist.c
 
 job_node.o: job_node.c job_node.h
-	gcc -c job_node.c
+	gcc -c -Wall job_node.c
 
 tokenizer.o: tokenizer.c tokenizer.h
-	gcc -c tokenizer.c
+	gcc -c -Wall tokenizer.c
 
 
 clean:
