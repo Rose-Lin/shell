@@ -53,6 +53,7 @@ int execjob_num = 0; // number of jobs to be executed during one input
 
 // terminal attribute related globals
 pid_t shell_pid;
+pid-t shell_gpid;
 struct termios mysh;
 int mysh_fd = STDIN_FILENO;
 
@@ -85,36 +86,42 @@ void* sigchild_handler(int signal, siginfo_t* sg, void* oldact) {
 	int status = sg->si_code;
 	sigset_t sset;
 	sigaddset(&sset, SIGCHLD);
-	int update_result;
 
 	if(status == CLD_EXITED) {
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		update_result = update_list(childpid, terminated);
+		update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return;
 
 	} else if (status == CLD_KILLED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		update_result = update_list(childpid, terminated);
+		update_list(childpid, terminated);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return;
 
 	} else if (status == CLD_STOPPED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		update_result = update_list(childpid, fg_to_sus);
+		update_list(childpid, fg_to_sus);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return;
 
 	} else if (status == CLD_CONTINUED) {
 
 		sigprocmask(SIG_BLOCK, &sset, NULL);
-		update_result = update_list(childpid, bg_to_fg);
+		update_list(childpid, bg_to_fg);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		return;
 
 	} else if (status == CLD_TRAPPED) {
 		printf("child %d got trapped\n", childpid);
+		return;
 	} else if(status == CLD_DUMPED) {
 		printf("child %d got dumped\n", childpid);
+		return;
 	}
+
 }
 
 
@@ -263,14 +270,24 @@ int execute_input(char* task) {
 int main(int argc, char* argv[]){
 	// sets up
 	int run = FALSE;
-	tcgetattr(mysh_fd, &mysh);
 	shell_pid = getpid();
-	set_up_signals();
-	init_sems();
-	init_joblists();
+	if(setpgid(shell_pid, shell_pid) < 0) {
+		perror("Reset shell gid failed\n");
+		exit(FALSE);
+	}
+	shell_gpid = getpgid(shell_pid);
+	if(shell_gpid != tcgetpgrip(mysh_fd)) {
+		int result = tcsetpgrp(mysh_fd, shell_gpid);
+		if(result < 0) {
+			perror("Setting shell to foreground failed\n");
+		}
+	}
+	tcgetattr(mysh_fd, &mysh);
 
 	do {
 		// starts executing
+		// check if need to store the shell termios here
+
 		char* input = read_input();
 		char** multi_jobs; // needs to free
 		int num_jobs = parse_input(input, ";", multi_jobs);
@@ -283,6 +300,7 @@ int main(int argc, char* argv[]){
 			// free curjob
 		}
 		free(input);
+		// check if need to restore the shell termios here
 		// free multi_jobs
 	} while (run);
 	close_sems();
