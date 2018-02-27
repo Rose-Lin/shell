@@ -218,7 +218,6 @@ char* read_input() {
     free(input);
     input = NULL;
   }
-
 	printf("4\n");
 	job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
 	printf("5\n");
@@ -230,8 +229,10 @@ char* read_input() {
 }
 
 parse_output* parse_input(char* input, char* delim) {
+	printf("%s\n", "~~~~~~~~~~~~~~");
+	printf("%s\n", input);
 	char* cur = input;
-	s.total = 0;
+	int total = 0;
 	int size = BUFSIZE;
 	parse_output* po = malloc(sizeof(struct parse_output));
 	if(po == NULL) {
@@ -240,6 +241,7 @@ parse_output* parse_input(char* input, char* delim) {
 	}
 	struct tokenizer* t = init_tokenizer(input, delim);
 	char* token = get_next_token(t);
+	printf("token is: %s\n", token);
 	po->tasks = (char**)malloc(sizeof(char*) * size);
 	if(token == NULL) {
 		int len = strlen(input);
@@ -247,8 +249,11 @@ parse_output* parse_input(char* input, char* delim) {
 			printf("malloc failed\n");
 			return NULL;
 		}
+		printf("%s\n", "token is null");
 		sprintf(po->tasks[total], input);
 		po->tasks[total][len] = '\0';
+		printf("%s\n", "++++++++");
+		printf("%s\n", po->tasks[total]);
 		po->num = 1;
 		return po;
 	} else if (strcmp(token, "\n") == 0) {
@@ -267,28 +272,35 @@ parse_output* parse_input(char* input, char* delim) {
 		po->num = 1;
 		return po;
 	}
-
 	while(token != NULL && strcmp(token, "\n") != 0) {
 		int strlength = strlen(cur) - strlen(token);
 		int malloclength = strlength + 1;
 		if(token[strlen(token) - 1] == '&') { //if the current one is background job
 			malloclength ++;
 		}
+		printf("%s\n", "----------------1");
 		po->tasks[total] = malloc(sizeof(char) *  malloclength);
-		sprintf(po->tasks[total], input);
-		if(token[strlen(token) - 1] == '&') {
-				po->tasks[total] += '&';
-		}
+		sprintf(po->tasks[total], input, malloclength);
+		printf("%s\n", input);
+		printf("tasks: %s\n", po->tasks[total]);
+		// if(token[strlen(token) - 1] == '&') {
+			printf("%s\n", "---------------2");
+			// po->tasks[total] += '&';
+			printf("tasks: %s\n", po->tasks[total]);
+		// }
 		po->tasks[total][malloclength - 1] = '\0';
 
-		s.total += 1;
-		if(s.total >= BUFSIZE) {
+		total += 1;
+		if(total >= BUFSIZE) {
 			size += BUFSIZE;
 			po->tasks = (char**)realloc(po->tasks, size);
 		}
 		token = get_next_token(t);
 	}
-	po->num = total + 1;
+	printf("%d\n", total);
+	printf("%s\n", po->tasks[0]);
+	// po->num = total + 1;
+	po->num = total;
 	return po;
 }
 
@@ -297,6 +309,7 @@ parse_output* parse_input(char* input, char* delim) {
 
 int execute(char* task) {
 	int bg = FALSE;
+	printf("-----------------------------------123345---------------------");
 	printf("task in execute is %s\n", task);
 	parse_output* jobs = parse_input(task, " ");
 	parse_output* bgjob = parse_input(task, "&");
@@ -359,7 +372,6 @@ int execute(char* task) {
 		dlist_push_end(all_joblist, newjob);
 
 		if(bg) {
-
 			job_node* njobcpy = jobnode_deepcopy(newjob);
 			njobcpy->index = dlist_size(sus_bg_jobs) + 1;
 			dlist_push_end(sus_bg_jobs, njobcpy);
@@ -372,19 +384,15 @@ int execute(char* task) {
 
 		} else {
 		  printf("in here %s execution\n", jobs->tasks[0]);
-		  tcsetattr(mysh_fd, TCSANOW, &newjob->jmode);
-		  tcsetpgrp(mysh_fd, chgid);
-
+		  // tcsetattr(mysh_fd, TCSANOW, &newjob->jmode);
+		  // tcsetpgrp(mysh_fd, chgid);
 			if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
 				perror("Execution errror: ");
 			}
-
 			//free the jobs
 			//free(jobargs);
 			exit(0);
-
 		}
-
 	} else if(pid > 0) {
 		int stat;
 		if(bg) {
@@ -395,7 +403,7 @@ int execute(char* task) {
 			if(WIFSTOPPED(stat)){
 				update_list(pid, fg_to_sus);
 				tcsetpgrp(mysh_fd, getpgid(getpid()));
-				tcsetattr(mysh_fd, TCSANOW, &mysh);
+				tcsetattr(mysh_fd, TCSADRAIN, &mysh);
 			}
 		}
 	}
@@ -406,7 +414,7 @@ int execute(char* task) {
 int execute_input(char* task) {
 	int result = TRUE;
 	parse_output* p = parse_input(task, " ");
-	printf("current task is %s\n", p->tasks[0]);
+	printf("current task is %s\n", p->tasks[1]);
 	if(strcmp(p->tasks[0], "jobs") == 0) {
 		print_jobs(sus_bg_jobs);
 		// free processes
@@ -420,10 +428,9 @@ int execute_input(char* task) {
 		// need to free p
 		result = FALSE;
 	}else {
-
 		printf("not yet\n");
 		// after fork needs to store the termios immediately
-		execute(task);
+		execute(p->tasks[0]);
 	}
 	return result;
 }
@@ -478,21 +485,28 @@ int main(int argc, char* argv[]){
 			run = TRUE;
 			continue;
 		}
+		printf("%s\n", "dealing with newline");
 		parse_output* nonewline = parse_input(input, "\n");
 		if(nonewline == NULL) {
 			printf("No input \n");
 			run = TRUE;
 			continue;
 		}
+		printf("%s\n", "dealing with ;");
 		parse_output* job = parse_input(nonewline->tasks[0], ";");
+		printf("---------------------------------------4\n");
+		printf("job->num: %d\n", job->num);
 		for (int i = 0; i < job->num; i++) {
+			printf("%s\n", "deaing with &");
 			parse_output* p = parse_input(job->tasks[i], "&");
 			for(int j = 0; j < p->num; j++) {
+				printf("%s\n", "``````````````````````````");
+				printf("%s\n", p->tasks[0]);
 				run = execute_input(p->tasks[0]);
 			}
 			// free curjob
 		}
-		//printf("before free input 443\n");
+		printf("before free input 443\n");
 		free(input);
 		// check if need to restore the shell termios here
 		// free multijobs
@@ -501,11 +515,6 @@ int main(int argc, char* argv[]){
 	// clean up everything
 }
 
-void* create_shared_memory(size_t size){
-  int protection = PROT_READ | PROT_WRITE;
-  int visibility = MAP_ANONYMOUS | MAP_SHARED;
-  return mmap(NULL, size, protection, visibility, 0, 0);
-}
 // int check_special_symbols(char* input) {
 // 	execjob_num = 0;
 // 	struct tokenizer* t = init_tokenizer(input, special_delim);
@@ -555,22 +564,3 @@ void* create_shared_memory(size_t size){
 //   // }
 //   delete_node(j1);
 // }
-
-
-/*
-int i = 0;
-void* shmem_all_joblist = create_shared_memory(sizeof(dlist*));
-void* shmem_background_joblist = create_shared_memory(sizeof(dlist*));
-void* shmem_suspended_joblist = create_shared_memory(sizeof(dlist*));
-memcpy(shmem_all_joblist, (void*)&all_joblist, sizeof(dlist*));
-memcpy(shmem_suspended_joblist,(void*)&suspended_joblist,sizeof(dlist*));
-memcpy(shmem_background_joblist,(void*)&background_joblist,sizeof(dlist*));
-size_t byte_num = 0;
-size_t buff_size = BUFSIZE;
-char* buffer = NULL;
-// byte_num = getline(&buffer, &buff_size, STDIN_FILENO);
-char* delimiter = ";& ";
-tokenizer* t = init_tokenizer("se xdfnsfeos;skei&siefn;se", delimiter);
-printf("%s\n", get_next_token(t));
-test_job_list();
-*/
