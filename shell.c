@@ -93,21 +93,12 @@ void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
 	sigaddset(&sset, SIGCHLD);
 
 	if(status == CLD_EXITED) {
-
-		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, terminated);
-		sigprocmask(SIG_UNBLOCK, &sset, NULL);
 		return NULL;
-
 	} else if (status == CLD_KILLED) {
-
-		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, terminated);
-		sigprocmask(SIG_UNBLOCK, &sset, NULL);
 		return NULL;
-
 	} else if (status == CLD_STOPPED) {
-
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		update_list(childpid, fg_to_sus);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -156,25 +147,26 @@ int update_list(pid_t pid, int flag) {
   sigprocmask(SIG_BLOCK, &sset, NULL);
 
   printf("in updating the job list\n");
-  if(flag == terminated) {
-    int result = dlist_remove_bypid(sus_bg_jobs, pid);
-    sigprocmask(SIG_UNBLOCK, &sset, NULL);
-    if(result == FALSE) {
-      printf(" child %d is not in the 'job' list\n", pid);
-      return FALSE;
-    }
-    return TRUE;
-  }
 
-  if(flag == bg_to_fg) {
-    int result = dlist_remove_bypid(sus_bg_jobs, pid);
-    sigprocmask(SIG_UNBLOCK, &sset, NULL);
-    if(result == FALSE) {
-      printf(" child %d is not in the 'job' list\n", pid);
-      return FALSE;
-    }
-    return TRUE;
-  }
+	// if(flag == terminated) {
+  //   int result = dlist_remove_bypid(sus_bg_jobs, pid);
+  //   sigprocmask(SIG_UNBLOCK, &sset, NULL);
+  //   if(result == FALSE) {
+  //     printf(" child %d is not in the 'job' list\n", pid);
+  //     return FALSE;
+  //   }
+  //   return TRUE;
+  // }
+	//
+  // if(flag == bg_to_fg) {
+  //   int result = dlist_remove_bypid(sus_bg_jobs, pid);
+  //   sigprocmask(SIG_UNBLOCK, &sset, NULL);
+  //   if(result == FALSE) {
+  //     printf(" child %d is not in the 'job' list\n", pid);
+  //     return FALSE;
+  //   }
+  //   return TRUE;
+  // }
 
 	/*if(flag == fg_to_sus) {
     job_node* find = dlist_get_bypid(all_joblist, pid);
@@ -311,6 +303,7 @@ int execute(char* task) {
 
   if(bgjob->num == 1 && bgjob->tasks[0][strlen(bgjob->tasks[0]) - 1] == '&') {
     bg = TRUE;
+		bgjob->tasks[0][strlen(bgjob->tasks[0]) - 1] = '\0';
   } else if(bgjob->num  > 1) {
     bg = TRUE;
   }
@@ -359,6 +352,7 @@ int execute(char* task) {
 
     if(execvp(jobs->tasks[0], jobs->tasks) < 0) {
       perror("Execution errror ");
+
     }
     // free this jobs
     exit(0);
@@ -398,6 +392,7 @@ int execute_input(char* task) {
   parse_output* p = parse_input(task, " ");
   printf("current task is %s\n", p->tasks[0]);
   if(strcmp(p->tasks[0], "jobs") == 0) {
+		printf("-------------------------------------jobs\n");
     print_jobs(sus_bg_jobs);
     // free processes
   } else if(strcmp(p->tasks[0], "bg") == 0) {
@@ -483,7 +478,6 @@ int main(int argc, char* argv[]){
       for(int j = 0; j < p->num; j++) {
 				printf("start running in main\n");
 				run = execute_input(p->tasks[0]);
-				printf("finish running in main\n");
       }
       // free curjob
     }
