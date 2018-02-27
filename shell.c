@@ -57,7 +57,7 @@ pid_t shell_gpid;
 struct termios mysh;
 int mysh_fd = STDIN_FILENO;
 
-
+/* ========================= Initializing ========================== */
 void init_sems() {
 	all = sem_open("all", O_CREAT, 0666, 1);
 	job = sem_open("job", O_CREAT, 0666, 1);
@@ -76,11 +76,11 @@ void init_joblists() {
 	sus_bg_jobs = dlist_new();
 }
 
-void free_joblists() {
-	dlist_free(sus_bg_jobs);
-	dlist_free(all_joblist);
-}
 
+<<<<<<< HEAD
+/* ========================== Handle Signals ============================== */
+=======
+>>>>>>> 8485f466b94de451006a74b4e97045bb86c5a19a
 void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
 	pid_t childpid = sg->si_pid;
 	int status = sg->si_code;
@@ -124,7 +124,26 @@ void* sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
 
 }
 
+int set_up_signals() {
+	sigset_t shellmask;
+	struct sigaction sa;
 
+	sigaddset(&shellmask, SIGINT);
+	sigaddset(&shellmask, SIGTERM);
+	sigaddset(&shellmask, SIGTTOU);
+	sigaddset(&shellmask, SIGTTIN);
+	sigaddset(&shellmask, SIGQUIT);
+	sigaddset(&shellmask, SIGTSTP);
+	sigprocmask(SIG_BLOCK, &shellmask, NULL);
+
+	sa.sa_flags = SA_SIGINFO;
+	// sa.sa_sigaction = &sigchld_handler;
+	sigaction(SIGCHLD, &sa, NULL);
+
+}
+
+
+/* ============================= update list ============================ */
 int update_list(pid_t pid, int flag) {
 	printf("in updating the job list\n");
 	if(flag == terminated) {
@@ -165,24 +184,7 @@ int update_list(pid_t pid, int flag) {
 }
 
 
-int set_up_signals() {
-	sigset_t shellmask;
-	struct sigaction sa;
-
-	sigaddset(&shellmask, SIGINT);
-	sigaddset(&shellmask, SIGTERM);
-	sigaddset(&shellmask, SIGTTOU);
-	sigaddset(&shellmask, SIGTTIN);
-	sigaddset(&shellmask, SIGQUIT);
-	sigaddset(&shellmask, SIGTSTP);
-	sigprocmask(SIG_BLOCK, &shellmask, NULL);
-
-	sa.sa_flags = SA_SIGINFO;
-	// sa.sa_sigaction = &sigchld_handler;
-	sigaction(SIGCHLD, &sa, NULL);
-
-}
-
+/* ========================= for "jobs" command =================== */
 void print_jobs(dlist jobs) {
 	job_node* top = get_head(jobs);
 	if(jobs == NULL) {
@@ -197,6 +199,9 @@ void print_jobs(dlist jobs) {
 		index ++;
 	}
 }
+
+
+/* ========================== read and parse input ============================ */
 
 // read in the input and add one jobnode(with original input)
 char* read_input() {
@@ -248,6 +253,9 @@ int parse_input(char* input, char* delim, char** tasks) {
 	return total;
 }
 
+
+/* ============================== executions =============================== */\
+
 int execute_input(char* task) {
 	char** processes;
 	int argnum = parse_input(task, " ", processes);
@@ -266,6 +274,13 @@ int execute_input(char* task) {
 		// after fork needs to store the termios immediately
 	}
 	return TRUE;
+}
+
+
+/* ============================ clean up stuff ============================= */
+void free_joblists() {
+	dlist_free(sus_bg_jobs);
+	dlist_free(all_joblist);
 }
 
 int main(int argc, char* argv[]){
