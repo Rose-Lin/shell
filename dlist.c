@@ -115,6 +115,7 @@ void dlist_insert(dlist l, int index, job_node* n){
   l->size++;
 }
 
+/*
 job_node* dlist_get(dlist l, int index){
   job_node* t = l->tail;
   if(index < (l->size)/2){
@@ -124,6 +125,19 @@ job_node* dlist_get(dlist l, int index){
     //traverse from tail
     return nth_job_prev(t, l->size-index-1);
   }
+}
+*/
+
+job_node* dlist_get(dlist l, int index) {
+  job_node* t = l->head;
+  while(t != NULL) {
+    if(t->index == index) {
+      printf("in dlist_get: cur input is %s with index %d\n", t->original_input, t->index);
+      return t;
+    }
+    t = t->next;
+  }
+  return NULL;
 }
 
 // int dlist_set(dlist l, int n, int new_elt){
