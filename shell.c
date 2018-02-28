@@ -215,14 +215,13 @@ void print_jobs(dlist jobs) {
   while(top != NULL) {
     printf("%d. %s \n", top->index, get_input(top));
     top = top->next;
-    index ++;
   }
 }
 
 
 /* ============================== bring to fg, bg, and kill =============================== */
 
-int bring_tobg(parser_output* p) {
+int bring_tobg(parse_output* p) {
 	sigset_t sset;
 	sigaddset(&sset, SIGCHLD);
 	int result = TRUE;
@@ -231,12 +230,33 @@ int bring_tobg(parser_output* p) {
 
 	if(p->num == no_arg) { // when bg has no argument
 		job_index = 1;
+
+		job_node* job = dlist_get(sus_bg_jobs, job_index);
+		if(job != NULL) {
+			if(job->status == suspended) {
+				int killresult = kill(job->gpid, SIGCONT);
+				if(killresult == 0) {
+					sigprocmask(SIG_BLOCK, &sset, NULL);
+					job->status = background;
+					sigprocmask(SIG_UNBLOCK, &sset, NULL);
+					result = TRUE;
+				} else {
+					printf("Sending SIGCONT to process group %d failed!\n", job->gpid);
+				}
+			} else if(job->status == background) {
+				printf("Process group %d already in background\n", job->gpid);
+			}
+		} else {
+			printf("Process group %d not in job list\n", job_index);
+		}
+
 	} else {
 		for(int i = 1; i < p->num; i++) {
-			int toint = to_int(p->tasks[i]);
-			printf(" in bringing to background job index is %d\n", toint);
-			if(toint != 0) {
-				job_node* job = dlist_get(sus_bg_jobs, toint);
+			job_index = to_int(p->tasks[i]);
+			printf(" in bringing to background job index is %d\n", job_index);
+			if(job_index != 0) {
+
+				job_node* job = dlist_get(sus_bg_jobs,job_index);
 				if(job != NULL) {
 					if(job->status == suspended) {
 						int killresult = kill(job->gpid, SIGCONT);
@@ -249,11 +269,12 @@ int bring_tobg(parser_output* p) {
 							printf("Sending SIGCONT to process group %d failed!\n", job->gpid);
 						}
 					} else if(job->status == background) {
-						printf("Process group %d already in background\n". job->gpid);
+						printf("Process group %d already in background\n", job->gpid);
 					}
 				} else {
 					printf("Process group %d not in job list\n", job_index);
 				}
+
 			} else {
 				printf("in valid index %d\n", job_index);
 			}
@@ -263,92 +284,92 @@ int bring_tobg(parser_output* p) {
 }
 
 
-int bring_tofg(parser_output* p) {
+int bring_tofg(parse_output* p) {
 	sigset_t sset;
 	sigaddset(&sset, SIGCHLD);
 	int result = TRUE;
 	int no_arg = 1;
-	int job_index; // index for the job backwards
+	int toint;
+	job_node* job;
 
 	if(p->num == no_arg) { // when bg has no argument
-		job_index = 1;
+		toint = 1;
+		job = dlist_get(sus_bg_jobs, toint);
 	} else {
 		for(int i = 1; i < p->num; i++) {
-			int toint = to_int(p->tasks[i]);
+			toint = to_int(p->tasks[i]);
 			printf(" in bringing to background job index is %d\n", toint);
 			if(toint != FALSE) {
 				job_node* job = dlist_get(sus_bg_jobs, toint);
 				if(job == NULL) {
-					printf("Process group %d not in job list\n", job_index);
 					continue;
-				} else {
-
-					if (job->status == suspended) {
-
-						int killresult = kill(job->gpid, SIGCONT);
-						if(killresult == 0) {
-							sigprocmask(SIG_BLOCK, &sset, NULL);
-							job->status = background;
-							sigprocmask(SIG_UNBLOCK, &sset, NULL);
-						}
-					}
-					if(job->status == background) {
-
-						int setgrp = tcsetpgrp(mysh_fd, job->gpid);
-						if(setgrp == SUCCESS) {
-							int setattr = tcsetattr(mysh_fd, TCSADRAIN, &(job->jmode));
-							if(setattr == SUCCESS) {
-								int stat;
-								int oldpid = job->pid;
-								char* oldinput = (char*)malloc(sizeof(char) * (strlen(job->original_input) + 1));
-								sprintf(oldinput, "%-*s", strlen(job->original_input), job->original_input);
-
-								sigprocmask(SIG_BLOCK, &sset, NULL);
-								dlist_remove_bypid(sus_bg_jobs, oldpid);
-								sigprocmask(SIG_UNBLOCK, &sset, NULL);
-								waidpid(job->pid, &stat, WUNTRACED);
-								if(WIFSTOPPED(stat)) {
-									struct termios childt;
-									tcgetattr(STDOUT_FILENO, &childt);
-									sigprocmask(SIG_BLOCK, &sset, NULL);
-									job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, suspended, pid,  getpgid(pid), oldinput, NULL, NULL);
-									newjob->jmode = childt;
-									dlist_push_end(sus_bg_jobs, newjob);
-									sigprocmask(SIG_UNBLOCK, &sset, NULL);
-								} else {
-									free(oldinput);
-								}
-								tcsetpgrp(mysh_fd, shell_gpid);
-								tcsetattr(mysh_fd, TCSADRAIN, &mysh);
-							} else {
-								printf("Set process group with index %d to terminal failed\n", toint);
-								tcsetpgrp(mysh_fd, shell_gpid);
-							}
-						} else {
-							printf("Set process group with index %d to foreground failed\n", toint);
-						}
-						return TRUE;
-
-					}
-					printf("Set process group with index %d to foreground failed\n", toint);
-					return TRUE;
 				}
-			} else {
-				continue;
 			}
 		}
+	}
+
+	if(job == NULL) {
+		printf("Process group %d not in job list\n", toint);
+		return TRUE;
+	}
+
+
+	if (job->status == suspended) {
+
+		int killresult = kill(job->gpid, SIGCONT);
+		if(killresult == 0) {
+			sigprocmask(SIG_BLOCK, &sset, NULL);
+			job->status = background;
+			sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		}
+	}
+	if(job->status == background) {
+
+		int setgrp = tcsetpgrp(mysh_fd, job->gpid);
+		if(setgrp == SUCCESS) {
+			int setattr = tcsetattr(mysh_fd, TCSADRAIN, &(job->jmode));
+			if(setattr == SUCCESS) {
+				int stat;
+				int oldpid = job->pid;
+				int oldgid = job->gpid;
+				char* oldinput = (char*)malloc(sizeof(char) * (strlen(job->original_input) + 1));
+				sprintf(oldinput, "%-*s", (int)strlen(job->original_input), job->original_input);
+
+				sigprocmask(SIG_BLOCK, &sset, NULL);
+				dlist_remove_bypid(sus_bg_jobs, oldpid);
+				sigprocmask(SIG_UNBLOCK, &sset, NULL);
+				waitpid(job->pid, &stat, WUNTRACED);
+				if(WIFSTOPPED(stat)) {
+					struct termios childt;
+					tcgetattr(STDOUT_FILENO, &childt);
+					sigprocmask(SIG_BLOCK, &sset, NULL);
+					job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, suspended, oldpid, oldgid, oldinput, NULL, NULL);
+					newjob->jmode = childt;
+					dlist_push_end(sus_bg_jobs, newjob);
+					sigprocmask(SIG_UNBLOCK, &sset, NULL);
+				} else {
+					free(oldinput);
+				}
+				tcsetpgrp(mysh_fd, shell_gpid);
+				tcsetattr(mysh_fd, TCSADRAIN, &mysh);
+			} else {
+				printf("Set process group with index %d to terminal failed\n", toint);
+				tcsetpgrp(mysh_fd, shell_gpid);
+			}
+		} else {
+			printf("Set process group with index %d to foreground failed\n", toint);
+		}
+		return TRUE;
+
 	}
 	return result;
 }
 
 int kill_process(parse_output* p) {
-	int result = TRUE;
 	int no_arg = 1;
 	int is_sigkill = 3;
 	int is_sigterm = 2;
 	int flag_index = 1;
-	int sigkill_index = 2;
-	int sigterm_index = 1;
 
 	if(p->num == no_arg) {
 		printf("kill: usage: kill -flag(optional) job_index(integer)\n");
@@ -361,17 +382,17 @@ int kill_process(parse_output* p) {
 				return TRUE;
 			}
 		} else {
-			if(p->num != is_sigkill) {
+			if(p->num != is_sigterm) {
 				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
 				return TRUE;
 			}
 		}
-		int jobindex = sigkill ? 2 : 1;
-		if(p->tasks[jobindex][0] != "%") {
+		int indexnum = sigkill ? 2 : 1;
+		if((char)p->tasks[indexnum][0] != '%') {
 			printf("kill: Operating not permitted\n");
 			return TRUE;
 		} else {
-			int job_index = to_int(p->tasks[sigkill_index]);
+			int job_index = to_int(p->tasks[indexnum]);
 			if(job_index == FALSE) {
 				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
 				return TRUE;
@@ -382,7 +403,7 @@ int kill_process(parse_output* p) {
 					return TRUE;
 				} else {
 					int kill_signal = sigkill ? SIGKILL : SIGTERM;
-					in kill_result = kill(job->gpid, kill_signal);
+					int kill_result = kill(job->gpid, kill_signal);
 					if(kill_result != 0) {
 						printf("kill: SIGKILL terminates process group with index %d failed\n", job_index);
 					}
@@ -412,7 +433,7 @@ int execute_bg(char* task) {
 	} else if(strcmp(p->tasks[0], TOFG) == 0) {
 		result = bring_tofg(p);
 	} else if (strcmp(p->tasks[0], KILL) == 0) {
-		printf("to be implemented\n");
+		kill_process(p);
 	} else if(strcmp(p->tasks[0], EXIT) == 0) {
 		// need to free p
 		result = FALSE;
@@ -485,7 +506,7 @@ int execute_fg(char* task) {
 	} else if(strcmp(p->tasks[0], TOFG) == 0) {
 		result = bring_tofg(p);
 	} else if (strcmp(p->tasks[0], KILL) == 0) {
-		printf("to be implemented\n");
+		kill_process(p);
 	} else if(strcmp(p->tasks[0], EXIT) == 0) {
 		// need to free p
 		result = FALSE;
@@ -550,7 +571,7 @@ void free_parser(parse_output* po) {
     if(po->num > 0) {
       int index = 0;
       for(int i = 0; i < po->num; i++) {
-	free(po->tasks[index]);
+				free(po->tasks[index]);
       }
     }
     free(po->tasks);
@@ -593,33 +614,37 @@ int main(int argc, char* argv[]){
 
   do {
 		char* input = read_input();
-		parse_ouput* newline = parse_input(input, "\n");
+		printf("1a\n");
+		parse_output* newline = parse_input(input, "\n");
 		parse_output* jobs = parse_input(newline->tasks[0], ";");
 		int symbolnum = 0;
+		printf("2a\n");
 		for(int i = 0; i < jobs->num; i++) {
 			if(strcmp(jobs->tasks[i], ";") == 0) {
 				jobs->tasks[i] = "";
 				symbolnum ++;
 			}
 		}
+
+		printf("3a\n");
 		int jobnum = jobs->num - symbolnum;
 		char* job = jobs->tasks[0];
-		for(int i = 0; i < jobs->num; i++) {
-			job = jobs->tasks[i];
-			if(strcmp(job, "") != 0) {
-				break;
-			}
-		}
-
+		// for(int i = 0; i < jobs->num; i++) {
+		// 	job = jobs->tasks[i];
+		// 	if(strcmp(job, "") != 0) {
+		// 		break;
+		// 	}
+		// }
+		printf("4a job num is %d\n", jobnum);
 		for(int i = 0; i < jobnum - 1; i++) {
-			parse_output* smalljob;
-			smalljob = parse_output(job, "&");
+			printf("Main: in smalljob\n");
+			parse_output* smalljob = parse_input(job, "&");
 			for(int j = 0; j < smalljob->num; j++) {
 				if(strcmp(smalljob->tasks[j], "&") != 0) {
 					if(j == smalljob->num - 1) {
-						execute_fg(smalljob->tasks[j]);
+						run = execute_fg(smalljob->tasks[j]);
 					} else if(strcmp(smalljob->tasks[j+1], "&") == 0) {
-						execute_bg(smalljob->tasks[j]);
+						run = execute_bg(smalljob->tasks[j]);
 					}
 				} else {
 					continue;

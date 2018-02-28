@@ -1,89 +1,124 @@
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
-
 #include "tokenizer.h"
 #include "parser.h"
 
-// read in the input and add one jobnode(with original input)
-char* read_input() {
-  size_t readn;
-  char* input = NULL;
-  printf("mysh > ");
-  if(getline(&input, &readn, stdin) < 0) {
-    printf("getline from stdin failed! \n");
-    free(input);
-    input = NULL;
+# define BUFFSIZE 1024
+
+parse_output* parse_input(char* input, char* delim){
+  // char** jobs = malloc(sizeof(char*)*BUFFSIZE);
+  parse_output* parse_result = malloc(sizeof(parse_output*));
+  parse_result->num = 0;
+  parse_result->tasks = malloc(sizeof(char*)*BUFFSIZE);
+  tokenizer* t = init_tokenizer(input, delim);
+  char * cur = input;
+  int original_length = 0;
+  int new_length = 0;
+  int count_token = 0;
+  int occupy = count_token;
+  while(cur){
+    original_length = strlen(cur);
+    // printf("cur:%s|\n", cur);
+    char* next_cur = get_next_token(t);
+    // printf("nex:%s|\n", next_cur);
+    if (next_cur){
+      new_length = strlen(next_cur);
+    }else{
+      // printf("next_cur null\n" );
+      new_length = 0;
+    }
+    /*the length of the token*/
+    int copy_length = original_length-new_length;
+    // printf("%d\n", copy_length);
+    // if (next_cur == NULL){
+    //   printf("%s\n", "+++++++++");
+    //   jobs[count_token] = malloc(sizeof(char*)*(copy_length+1));
+    //   strncpy(jobs[count_token], cur, copy_length);
+    //   /*add a 0 to the end*/
+    //   *(jobs[count_token]+copy_length+1) =0;
+    //   /*check if the jobs is running out of size*/
+    //   if (occupy >= BUFFSIZE){
+    //     jobs = (char**)realloc(jobs, BUFFSIZE+count_token);
+    //     occupy -= BUFFSIZE;
+    //   }
+    //   printf("%s|\n", jobs[count_token]);
+    //   count_token ++;
+    //   occupy ++;
+    // }else{
+    if (!next_cur || strcmp(cur, next_cur)!=0){
+        // printf("%s\n", "+++++++++====");
+        parse_result->tasks[count_token] = malloc(sizeof(char*)*(copy_length+1));
+        strncpy(parse_result->tasks[count_token], cur, copy_length);
+        /*add a 0 to the end*/
+        *(parse_result->tasks[count_token]+copy_length+1) =0;
+        /*check if the jobs is running out of size*/
+        if (occupy >= BUFFSIZE){
+          // printf("occupy:%d\n", BUFFSIZE+count_token);
+          parse_result->tasks= (char**)realloc(parse_result->tasks, BUFFSIZE+count_token);
+          occupy -= BUFFSIZE;
+          // printf("changed occupy:%d\n", occupy);
+        }
+        printf("%s|\n", parse_result->tasks[count_token]);
+        count_token ++;
+        occupy ++;
+    }
+    if (next_cur){
+      // printf("%s\n", "yoyoyo");
+      for(int i=0; i<strlen(delim); i++){
+        if(*next_cur == *(delim+i)){
+          // printf("%c\n", *(delim+i));
+          char new_token[2];
+          new_token[0] = delim[i];
+          new_token[1] = '\0';
+          parse_result->tasks[count_token] = malloc(sizeof(char*)*2);
+          // printf("new_token:%s|\n",new_token );
+          next_cur ++;
+          /*check if the jobs is running out of size*/
+          if (occupy >= BUFFSIZE){
+            // printf("size:%d\n", BUFFSIZE+count_token);
+            parse_result->tasks = (char**)realloc(parse_result->tasks, BUFFSIZE+count_token);
+            occupy -= BUFFSIZE;
+            // printf("changed occupy:%d\n", occupy);
+          }
+          /*string copy*/
+          strncpy(parse_result->tasks[count_token], new_token,strlen(new_token));
+          // printf("special_token:%s| + count_token: %d\n", jobs[count_token], count_token);
+          count_token ++;
+          occupy ++;
+        }
+      }
+    }
+    cur = next_cur;
+    // printf("%s\n", "~~~~~");
+    if (next_cur && *next_cur =='\0'){
+      next_cur = NULL;
+      cur = NULL;
+    }
   }
-
-  printf("4\n");
-  job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
-  printf("5\n");
-  jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
-  sprintf(jn->original_input, input);
-  jn->original_input[strlen(input)] = '\0';
-  dlist_push_end(all_joblist, jn);
-  return input;
+  parse_result->tasks = parse_result->tasks;
+  parse_result->num = count_token;
+  return parse_result;
 }
 
-
-parse_output* parse_input(char* input, char* delim) {
- char* cur = input;
- int total = 0;
- int size = BUFSIZE;
- parse_output* po = malloc(sizeof(struct parse_output));
- if(po == NULL) {
-   printf("malloc failed\n");
-   return NULL;
- }
- struct tokenizer* t = init_tokenizer(input, delim);
- char* token = get_next_token(t);
- po->tasks = (char**)malloc(sizeof(char*) * size);
- if(token == NULL) {
-   int len = strlen(input);
-   if((po->tasks[total] = malloc(sizeof(char) *  len)) == NULL) {
-     printf("malloc failed\n");
-     return NULL;
-   }
-   sprintf(po->tasks[total], input);
-   po->tasks[total][len] = '\0';
-   po->num = 1;
-   return po;
- } else if (strcmp(token, "\n") == 0) {
-   int len = strlen(input) - 1;
-   if(len == 0) {
-     free(po->tasks);
-     free(po);
-     return NULL;
-   }
-   if((po->tasks[total] = malloc(sizeof(char) *  strlen(input))) == NULL) {
-     printf("malloc failed\n");
-     return NULL;
-   }
-   sprintf(po->tasks[total], input);
-   po->tasks[total][len] = '\0';
-   po->num = 1;
-   return po;
- }
-
- while(token != NULL && strcmp(token, "\n") != 0) {
-   int strlength = strlen(cur) - strlen(token);
-   int malloclength = strlength + 1;
-   if(*token == '&') { //if the current one is background job
-     malloclength ++;
-   }
-   printf("malloc length is %d\n", malloclength);
-   po->tasks[total] = malloc(sizeof(char) *  malloclength);
-   sprintf(po->tasks[total], "%-*s", malloclength - 1, cur);
-   po->tasks[total][malloclength - 1] = '\0';
-   total += 1;
-   if(total >= BUFSIZE) {
-     size += BUFSIZE;
-     po->tasks = (char**)realloc(po->tasks, size);
-   }
-   cur = token;
-   token = get_next_token(t);
- }
- po->num = total;
- return po;
+/*
+int main(){
+  char* input = "emacs ; wehsoe ; so& sej;sieweo% slne&soej;seiose&slifee&slfieoi&sfkue\n";
+  // char* input = ";";
+  // char* input = "\n";
+  // char* input = " ";
+  // char* input = ";;;;;;;;; ;  %&%&^5^829hd&% \n fd &%\nsd&&&&&;*";
+  // char* input = ";;;;;;;;; ;";
+  // char* input = "wke;sfeu soei^lf&oeif\n";
+  parse_output* po;
+  po = parse_input(input, ";&%\n");
+  printf("%s\n", "~~~~~~~~~~~~~~~~~~");
+  char** start = po->tasks;
+  printf("%d\n", po->num);
+  // printf("%s\n", *(po->tasks+4));
+  for (int i=0; i<po->num; i++){
+    printf("%d\n", i);
+    printf("%s|\n", *(po->tasks+i));
+  }
 }
+*/
