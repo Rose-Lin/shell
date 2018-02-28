@@ -349,7 +349,7 @@ int bring_tofg(parse_output* p) {
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		dlist_remove_bypid(sus_bg_jobs, oldpid);
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-		waitpid(job->pid, &stat, WUNTRACED);
+		waitpid(oldpid, &stat, WUNTRACED);
 		if(WIFSTOPPED(stat)) {
 			struct termios childt;
 			tcgetattr(STDOUT_FILENO, &childt);
@@ -487,6 +487,8 @@ int execute_bg(char* task) {
 				// free p;
 				result = TRUE;
 			}
+			exit(0);
+		} else if(pid > 0){
 			//			return result;
 		  int stat;
 		  //setpgid(getpid(), getpid());
