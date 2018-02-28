@@ -94,6 +94,7 @@ void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
     update_list(childpid, fg_to_sus);
     return;
   } else if (status == CLD_CONTINUED) {
+		printf("sighandler: child continued\n");
     update_list(childpid, bg_to_fg);
     return;
   } else if (status == CLD_TRAPPED) {
@@ -136,9 +137,9 @@ int update_list(pid_t pid, int flag) {
   printf("in updating the job list\n");
 
   if(flag == terminated) {
-    printf("update_list: removing child\n");
+    printf("update_list: removing child  current size of %d \n", dlist_size(sus_bg_jobs));
     int result = dlist_remove_bypid(sus_bg_jobs, pid);
-    printf("update_list: child removed\n");
+    printf("update_list: child removed current size of %d size %d \n", result, dlist_size(sus_bg_jobs));
     sigprocmask(SIG_UNBLOCK, &sset, NULL);
     if(result == FALSE) {
       printf(" child %d is not in the 'job' list\n", pid);
@@ -164,6 +165,7 @@ int update_list(pid_t pid, int flag) {
       sigprocmask(SIG_UNBLOCK, &sset, NULL);
       return FALSE;
     } else {
+			printf("setting status to stopped\n");
       find->status = suspended;
     }
     sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -234,7 +236,7 @@ int bring_tobg(parse_output* p) {
   int no_arg = 1;
   int job_index; // index for the job backwards
   job_node* job;
-  
+
   if(p->num == no_arg) { // when bg has no argument
     job_index = 1;
 
@@ -382,7 +384,7 @@ int kill_process(parse_output* p) {
   int flag_index = 1;
   sigset_t sset;
   job_node* job;
-  
+
   sigaddset(&sset, SIGCHLD);
   if(p->num == no_arg) {
     printf("kill: no_ard\n");
@@ -419,12 +421,19 @@ int kill_process(parse_output* p) {
 	  printf("kill: no such job");
 	  return TRUE;
 	} else {
+		if(job->status == suspended) {
+			if(kill(job->gpid, SIGCONT) == FAILURE) {
+				perror("Continue job failed: ");
+			}
+		}
+
+	  printf("kill process %d is sending signals\n", job->gpid);
 	  if(kill(job->gpid, sigkill ? SIGKILL : SIGTERM) == FAILURE) {
 	    printf("kill: SIGKILL terminates process group with index %d failed\n", job_index);
 	  } else {
-	    sigprocmask(SIG_BLOCK, &sset, NULL);
-	    dlist_remove_bypid(sus_bg_jobs, job->gpid);
-	    sigprocmask(SIG_UNBLOCK, &sset, NULL);
+	    //sigprocmask(SIG_BLOCK, &sset, NULL);
+	    //dlist_remove_bypid(sus_bg_jobs, job->gpid);
+	    //sigprocmask(SIG_UNBLOCK, &sset, NULL);
 
 	  }
 	  return TRUE;
@@ -440,14 +449,14 @@ int execute_bg(char* task) {
   int result = TRUE;
   struct termios term;
   sigset_t sset;
-  
+
   job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, NOTKNOWN, NOTKNOWN, task, NULL, NULL);
   sigaddset(&sset, SIGCHLD);
   sigprocmask(SIG_BLOCK, &sset, NULL);
   dlist_push_end(sus_bg_jobs, newjob);
   sigprocmask(SIG_UNBLOCK, &sset, NULL);
   parse_output* p = parse_input(task, " ");
- 
+
   if(p->num == 0) {
     printf("Invalid Input\n");
     return TRUE;
@@ -475,9 +484,9 @@ int execute_bg(char* task) {
       // in child
       pid_t chpid = getpid();
       if(setpgid(chpid, chpid) < 0 ) {
-	perror("set child gid failed: ");
+				perror("set child gid failed: ");
       }
-      
+
       signal (SIGINT, SIG_DFL);
       signal (SIGQUIT, SIG_DFL);
       signal (SIGTSTP, SIG_DFL);
@@ -485,7 +494,7 @@ int execute_bg(char* task) {
       signal (SIGTTOU, SIG_DFL);
       signal (SIGTERM, SIG_DFL);
       printf("execute_bg: child: the child process group pid is %d\n", getpgid(getpid()));
-     
+
       //need free(p)
       if(execvp(p->tasks[0], p->tasks) < 0) {
 	perror("Execution error ");
@@ -496,6 +505,7 @@ int execute_bg(char* task) {
     } else if(pid > 0){
       //			return result;
       int stat;
+			setpgid(pid, pid);
       setpgid(getpid(), getpid());
       tcgetattr(mysh_fd, &term);
       printf("execute_bg: in parent: the child process group pid is %d\n", getpgid(pid));
@@ -527,6 +537,7 @@ int execute_fg(char* task) {
   printf("current task is %s in foreground ffffffffffffffffffffffffffff\n", p->tasks[0]);
 
   if(strcmp(p->tasks[0], JOBS) == 0) {
+		printf("jobs in fggfgfgfgfgf\n");
     print_jobs(sus_bg_jobs);
     result = TRUE;
   } else if(strcmp(p->tasks[0], TOBG) == 0) {
@@ -565,23 +576,23 @@ int execute_fg(char* task) {
 	perror("Execution error ");
 	result = TRUE;
       }
-      
+
       exit(0);
     } else if (pid > 0) {
-       if(setpgid(getpid(), getpid()) < 0) { 
-	 perror("executefg: parent: Set parent gid in parent failed: "); 
+       if(setpgid(getpid(), getpid()) < 0) {
+	 perror("executefg: parent: Set parent gid in parent failed: ");
        } else if(setpgid(pid, pid) < 0) {
 	 perror("executefg: parent: set child gid in parent failed: ");
        }
       int stat;
       sigset_t sset;
       sigaddset(&sset, SIGCHLD);
-      printf("executefg: in parent: child gid: %d and shell gid %d\n", getpgid(pid), shell_gpid);
+      printf("executefg: in parent: parent gid: %d  child gid: %d and shell gid %d\n", getpgid(getpid()), getpgid(pid), shell_gpid);
       if(tcsetpgrp(mysh_fd, getpgid(pid)) != SUCCESS) {
 	printf("execute_fg: setting child process to foreground failed\n");
 	return TRUE;
       }
-      
+
       tcgetattr(mysh_fd, &jterm);
       waitpid(pid, &stat, WUNTRACED);
       if(WIFSTOPPED(stat)){
