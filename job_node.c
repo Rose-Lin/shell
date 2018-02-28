@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <termios.h>
+#include <string.h>
 #include "job_node.h"
 
 job_node* new_node(int index, int status, pid_t pid, pid_t gpid, char* original_input, job_node* next, job_node* prev){
@@ -10,7 +11,8 @@ job_node* new_node(int index, int status, pid_t pid, pid_t gpid, char* original_
   n->status = status;
   n->pid = pid;
   n->gpid = gpid;
-  n->original_input = original_input;
+  n->original_input = malloc(sizeof(char) * (strlen(original_input) + 1));
+  strcpy(n->original_input, original_input);
   n->next = next;
   n->prev = prev;
   return n;
@@ -38,6 +40,22 @@ void insert_before(job_node* n, job_node* new_n){
   new_n->next = n;
 }
 
+void delete_node(job_node* n) {
+  job_node* prev = n->prev;
+  job_node* next = n->next;
+  if(prev != NULL && next != NULL) {
+    prev->next = next;
+    next->prev = prev;
+  } else if(prev != NULL) {
+    prev->next = NULL;
+  } else if(next != NULL) {
+    next->prev = NULL;
+  }
+  free(n->original_input);
+  free(n);
+}
+
+/*
 void delete_node(job_node* n){
   if(n->prev && n->next){
     n->prev->next = n->next;
@@ -49,6 +67,7 @@ void delete_node(job_node* n){
   }
   free(n);
 }
+*/
 
 job_node* get_jobnode_bypid(job_node* head, pid_t pid){
   job_node* p = head;
