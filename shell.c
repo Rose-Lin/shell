@@ -636,7 +636,7 @@ int main(int argc, char* argv[]){
 		// 	}
 		// }
 		printf("4a job num is %d\n", jobnum);
-		for(int i = 0; i < jobnum - 1; i++) {
+		for(int i = 0; i < jobnum; i++) {
 			printf("Main: in smalljob\n");
 			parse_output* smalljob = parse_input(job, "&");
 			for(int j = 0; j < smalljob->num; j++) {
