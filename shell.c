@@ -96,6 +96,7 @@ void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
   pid_t childpid = sg->si_pid;
   int status = sg->si_code;
   if(status == CLD_EXITED) {
+		printf("child terminated\n");
     update_list(childpid, terminated);
     return;
   } else if (status == CLD_KILLED) {
@@ -147,7 +148,9 @@ int update_list(pid_t pid, int flag) {
   printf("in updating the job list\n");
 
 	if(flag == terminated) {
+		printf("update_list: removing child\n");
     int result = dlist_remove_bypid(sus_bg_jobs, pid);
+		printf("update_list: child removed\n");
     sigprocmask(SIG_UNBLOCK, &sset, NULL);
     if(result == FALSE) {
       printf(" child %d is not in the 'job' list\n", pid);
@@ -205,6 +208,7 @@ char* read_input() {
 
 /* ========================= for "jobs" command ========================= */
 void print_jobs(dlist jobs) {
+	int length = 15;
   job_node* top = get_head(jobs);
   if(jobs == NULL) {
     printf("No jobs available.\n");
@@ -213,8 +217,21 @@ void print_jobs(dlist jobs) {
   }
 
   while(top != NULL) {
-    printf("%d. %s \n", top->index, get_input(top));
+		char* status = malloc(sizeof(char) * length);
+		switch(top->status) {
+			case background:
+				strcpy(status, "background");
+				break;
+			case foreground:
+				strcpy(status, "foreground");
+				break;
+			case suspended:
+				strcpy(status, "stopped");
+				break;
+		}
+    printf("%d. %s	%s\n", top->index, get_input(top), status);
     top = top->next;
+		free(status);
   }
 }
 
@@ -298,7 +315,7 @@ int bring_tofg(parse_output* p) {
 	} else {
 		for(int i = 1; i < p->num; i++) {
 			toint = to_int(p->tasks[i]);
-			printf(" in bringing to background job index is %d\n", toint);
+			printf("tofg: in bringing to foreground job index is %d\n", toint);
 			if(toint != FALSE) {
 				job_node* job = dlist_get(sus_bg_jobs, toint);
 				if(job == NULL) {
@@ -324,7 +341,7 @@ int bring_tofg(parse_output* p) {
 		}
 	}
 	if(job->status == background) {
-
+		printf("bringfg: child status is background\n");
 		int setgrp = tcsetpgrp(mysh_fd, job->gpid);
 		if(setgrp == SUCCESS) {
 			int setattr = tcsetattr(mysh_fd, TCSADRAIN, &(job->jmode));
@@ -425,7 +442,6 @@ int execute_bg(char* task) {
 	}
   printf("current task is %s in background bbbbbbbbbbbbbbb\n", p->tasks[0]);
 	if(strcmp(p->tasks[0], JOBS) == 0) {
-		printf("-----------------bgbgbgbgb--------------------jobs\n");
 		print_jobs(sus_bg_jobs);
 		result = TRUE;
 	} else if(strcmp(p->tasks[0], TOBG) == 0) {
@@ -469,14 +485,11 @@ int execute_bg(char* task) {
 			int stat;
 			sigset_t sset;
 			sigaddset(&sset, SIGCHLD);
-			printf("parent is creating\n");
 			job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, pid, NOTKNOWN, task, NULL, NULL);
-			printf("parent finish creating\n");
 			newjob->gpid = getpgid(pid);
 			sigprocmask(SIG_BLOCK, &sset, NULL);
 			dlist_push_end(sus_bg_jobs, newjob);
 			sigprocmask(SIG_UNBLOCK, &sset, NULL);
-			printf("parent finish adding\n");
 			waitpid(pid, &stat, WNOHANG);
 		}
 		tcsetpgrp(mysh_fd, getpgid(getpid()));
@@ -497,7 +510,6 @@ int execute_fg(char* task) {
   printf("current task is %s in foreground ffffffffffffffffffffffffffff\n", p->tasks[0]);
 
 	if(strcmp(p->tasks[0], JOBS) == 0) {
-		printf("-----------------fgfgfgfgfgf--------------------jobs\n");
 		print_jobs(sus_bg_jobs);
 		result = TRUE;
 	} else if(strcmp(p->tasks[0], TOBG) == 0) {
@@ -530,6 +542,7 @@ int execute_fg(char* task) {
 			signal (SIGTTOU, SIG_DFL);
 			signal (SIGTERM, SIG_DFL);
 
+			tcsetpgrp(mysh_fd, getpgid(pid));
 			if(execvp(p->tasks[0], p->tasks) < 0) {
 				perror("Execution error ");
 				// free p;
@@ -542,9 +555,11 @@ int execute_fg(char* task) {
 			int stat;
 			sigset_t sset;
 			sigaddset(&sset, SIGCHLD);
+			tcsetpgrp(mysh_fd, getpgid(pid));
 			waitpid(pid, &stat, WUNTRACED);
 			printf("in patent\n");
 			if(WIFSTOPPED(stat)){
+				printf("execute_fg: child stopped\n");
 				struct termios childt;
 				tcgetattr(STDOUT_FILENO, &childt);
 				sigprocmask(SIG_BLOCK, &sset, NULL);
@@ -616,27 +631,40 @@ int main(int argc, char* argv[]){
 		char* input = read_input();
 		printf("1a\n");
 		parse_output* newline = parse_input(input, "\n");
+		printf("input is %s||||||", input);
+		if(newline->num == 1) {
+			run = TRUE;
+			// free newline
+			continue;
+		}
 		parse_output* jobs = parse_input(newline->tasks[0], ";");
+		if(jobs->num == 1 && strcmp(newline->tasks[0], ";") == 0) {
+			run = TRUE;
+			printf("Invalid input\n");
+			// free jobs
+			// free newline
+			continue;
+		}
 		int symbolnum = 0;
 		printf("2a\n");
 		for(int i = 0; i < jobs->num; i++) {
 			if(strcmp(jobs->tasks[i], ";") == 0) {
-				jobs->tasks[i] = "";
+				jobs->tasks[i] = NULL;
 				symbolnum ++;
 			}
 		}
 
 		printf("3a\n");
 		int jobnum = jobs->num - symbolnum;
-		char* job = jobs->tasks[0];
-		// for(int i = 0; i < jobs->num; i++) {
-		// 	job = jobs->tasks[i];
-		// 	if(strcmp(job, "") != 0) {
-		// 		break;
-		// 	}
-		// }
+		char* job = NULL;
+		for(int i = 0; i < jobs->num; i++) {
+			job = jobs->tasks[i];
+			if(job != NULL) {
+				break;
+			}
+		}
 		printf("4a job num is %d\n", jobnum);
-		for(int i = 0; i < jobnum - 1; i++) {
+		for(int i = 0; i < jobnum; i++) {
 			printf("Main: in smalljob\n");
 			parse_output* smalljob = parse_input(job, "&");
 			for(int j = 0; j < smalljob->num; j++) {
