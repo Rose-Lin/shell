@@ -10,6 +10,7 @@ void print_jobs(dlist job);  // checked
 
 char* read_input();
 
+int to_int(char*);
 // signals
 int set_up_signals(); // sets up the signals for the shell
 
@@ -27,6 +28,6 @@ int execute_bg(char*);
 
 int execute_fg(char*);
 
-int bring_tofg(parser_output* p)
+int bring_tofg(parser_output* p);
 
 //int execute_input(char* task);
