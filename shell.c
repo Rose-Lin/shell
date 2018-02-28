@@ -220,20 +220,23 @@ void print_jobs(dlist jobs) {
 }
 
 
-/* ============================== bring to fg and bg =============================== */
+/* ============================== bring to fg, bg, and kill =============================== */
+
 int bring_tobg(parser_output* p) {
 	sigset_t sset;
 	sigaddset(&sset, SIGCHLD);
 	int result = TRUE;
+	int no_arg = 1;
 	int job_index; // index for the job backwards
-	if(p->num == 1) { // when bg has no argument
+
+	if(p->num == no_arg) { // when bg has no argument
 		job_index = 1;
 	} else {
 		for(int i = 1; i < p->num; i++) {
 			int toint = to_int(p->tasks[i]);
 			printf(" in bringing to background job index is %d\n", toint);
 			if(toint != 0) {
-				job_node* job = dlist_get(sus_to_bg, toint);
+				job_node* job = dlist_get(sus_bg_jobs, toint);
 				if(job != NULL) {
 					if(job->status == suspended) {
 						int killresult = kill(job->gpid, SIGCONT);
@@ -264,15 +267,17 @@ int bring_tofg(parser_output* p) {
 	sigset_t sset;
 	sigaddset(&sset, SIGCHLD);
 	int result = TRUE;
+	int no_arg = 1;
 	int job_index; // index for the job backwards
-	if(p->num == 1) { // when bg has no argument
+
+	if(p->num == no_arg) { // when bg has no argument
 		job_index = 1;
 	} else {
 		for(int i = 1; i < p->num; i++) {
 			int toint = to_int(p->tasks[i]);
 			printf(" in bringing to background job index is %d\n", toint);
 			if(toint != FALSE) {
-				job_node* job = dlist_get(sus_to_bg, toint);
+				job_node* job = dlist_get(sus_bg_jobs, toint);
 				if(job == NULL) {
 					printf("Process group %d not in job list\n", job_index);
 					continue;
@@ -280,7 +285,7 @@ int bring_tofg(parser_output* p) {
 
 					if (job->status == suspended) {
 
-						int killresult kill)job->gpid, SIGCONT);
+						int killresult = kill(job->gpid, SIGCONT);
 						if(killresult == 0) {
 							sigprocmask(SIG_BLOCK, &sset, NULL);
 							job->status = background;
@@ -336,40 +341,60 @@ int bring_tofg(parser_output* p) {
 	return result;
 }
 
-/* ============================== executions =============================== */
-// not used
-int perform_task(parser_output* p) {
+int kill_process(parse_output* p) {
 	int result = TRUE;
-	if(strcmp(p->tasks[0], "jobs") == 0) {
-		printf("-----------------ptptptptpptptptptp--------------------jobs\n");
-		print_jobs(sus_bg_jobs);
-		// free processes
-	} else if(strcmp(p->tasks[0], "bg") == 0) {
-		int bg_result = bring_tofg(p);
-		if(!bg_result) {
-			printf("bg command failed with invalid input\n");
+	int no_arg = 1;
+	int is_sigkill = 3;
+	int is_sigterm = 2;
+	int flag_index = 1;
+	int sigkill_index = 2;
+	int sigterm_index = 1;
+
+	if(p->num == no_arg) {
+		printf("kill: usage: kill -flag(optional) job_index(integer)\n");
+		return TRUE;
+	} else {
+		int sigkill = (strcmp(p->tasks[flag_index], "-9") == 0);
+		if(sigkill) {
+			if(p->num != is_sigkill) {
+				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
+				return TRUE;
+			}
+		} else {
+			if(p->num != is_sigkill) {
+				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
+				return TRUE;
+			}
 		}
-		result = TRUE;
-	} else if(strcmp(p->tasks[0], "fg") == 0) {
-		printf("to be implemented\n");
-	} else if (strcmp(p->tasks[0], "kill") == 0) {
-		printf("to be implemented\n");
-	} else if(strcmp(p->tasks[0], "exit") == 0) {
-		// need to free p
-		result = FALSE;
-	}else {
-		printf("not yet\n");
-		if(execvp(p->tasks[0], p->tasks) < 0) {
-			perror("Execution error ");
-			// free p;
+		int jobindex = sigkill ? 2 : 1;
+		if(p->tasks[jobindex][0] != "%") {
+			printf("kill: Operating not permitted\n");
 			return TRUE;
+		} else {
+			int job_index = to_int(p->tasks[sigkill_index]);
+			if(job_index == FALSE) {
+				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
+				return TRUE;
+			} else {
+				job_node* job = dlist_get(sus_bg_jobs, job_index);
+				if(job == NULL) {
+					printf("kill: no such job");
+					return TRUE;
+				} else {
+					int kill_signal = sigkill ? SIGKILL : SIGTERM;
+					in kill_result = kill(job->gpid, kill_signal);
+					if(kill_result != 0) {
+						printf("kill: SIGKILL terminates process group with index %d failed\n", job_index);
+					}
+					return TRUE;
+				}
+			}
 		}
 	}
-	return result;
+	return TRUE;
 }
 
-
-
+/* ============================== executions =============================== */
 int execute_bg(char* task) {
   int result = TRUE;
   parse_output* p = parse_input(task, " ");
@@ -455,13 +480,10 @@ int execute_fg(char* task) {
 		print_jobs(sus_bg_jobs);
 		result = TRUE;
 	} else if(strcmp(p->tasks[0], TOBG) == 0) {
-		int bg_result = bring_tofg(p);
-		if(!bg_result) {
-			printf("bg command failed with invalid input\n");
-		}
+		result = bring_tobg(p);
 		result = TRUE;
 	} else if(strcmp(p->tasks[0], TOFG) == 0) {
-		printf("to be implemented\n");
+		result = bring_tofg(p);
 	} else if (strcmp(p->tasks[0], KILL) == 0) {
 		printf("to be implemented\n");
 	} else if(strcmp(p->tasks[0], EXIT) == 0) {
