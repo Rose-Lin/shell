@@ -188,6 +188,7 @@ enum flags{ fg_to_sus,
 			printf("getline from stdin failed! \n");
 			free(input);
 			input = NULL;
+			return input;
 		}
 
 		job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
@@ -669,6 +670,10 @@ enum flags{ fg_to_sus,
 
 		do {
 			char* input = read_input();
+			if (input==NULL){
+				run = TRUE;
+				continue;
+			}
 			parse_output* newline = parse_input(input, "\n");
 			if(newline->num == 1) {
 				run = TRUE;
