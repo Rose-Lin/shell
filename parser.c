@@ -8,6 +8,9 @@
 
 parse_output* parse_input(char* input, char* delim){
   // char** jobs = malloc(sizeof(char*)*BUFFSIZE);
+  if (!input){
+    return NULL;
+  }
   parse_output* parse_result = malloc(sizeof(parse_output*));
   parse_result->num = 0;
   parse_result->tasks = malloc(sizeof(char*)*BUFFSIZE);
