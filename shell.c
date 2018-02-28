@@ -69,21 +69,8 @@ pid_t shell_gpid;
 struct termios mysh;
 int mysh_fd = STDIN_FILENO;
 
-/* ========================= Initializing ========================== */
-/*
-  void init_sems() {
-  all = sem_open("all", O_CREAT, 0666, 1);
-  job = sem_open("job", O_CREAT, 0666, 1);
-  }
 
-  void close_sems() {
-  sem_unlink("all");
-  sem_close(all);
-  sem_unlink("job");
-  sem_close(job);
-  }
-*/
-
+/* ======================= Initializing Jobs ============================ */
 void init_joblists() {
   job_num = 0;
   all_joblist = dlist_new();
@@ -96,13 +83,14 @@ void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
   pid_t childpid = sg->si_pid;
   int status = sg->si_code;
   if(status == CLD_EXITED) {
-		printf("child terminated\n");
+    printf("sighandler: child terminated\n");
     update_list(childpid, terminated);
     return;
   } else if (status == CLD_KILLED) {
     update_list(childpid, terminated);
     return;
   } else if (status == CLD_STOPPED) {
+    printf("sighanlder: child stopped\n");
     update_list(childpid, fg_to_sus);
     return;
   } else if (status == CLD_CONTINUED) {
@@ -115,8 +103,8 @@ void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
     printf("child %d got dumped\n", childpid);
     return;
   } else {
-		printf("the status in signal handler is %d\n", status);
-	}
+    printf("the status in signal handler is %d\n", status);
+  }
   return;
 }
 
@@ -197,9 +185,7 @@ char* read_input() {
     input = NULL;
   }
 
-  printf("4\n");
   job_node* jn = new_node(dlist_size(all_joblist)+1, NOTKNOWN, NOTKNOWN, NOTKNOWN, input, NULL, NULL);
-  printf("5\n");
   jn->original_input = malloc(sizeof(char) * (strlen(input) + 1));
   sprintf(jn->original_input, input);
   dlist_push_end(all_joblist, jn);
@@ -253,7 +239,8 @@ int bring_tobg(parse_output* p) {
 			if(job->status == suspended) {
 				int killresult = kill(job->gpid, SIGCONT);
 				if(killresult == 0) {
-					sigprocmask(SIG_BLOCK, &sset, NULL);
+				  printf("bring+bg: signal successfully sent\n");
+				  sigprocmask(SIG_BLOCK, &sset, NULL);
 					job->status = background;
 					sigprocmask(SIG_UNBLOCK, &sset, NULL);
 					result = TRUE;
@@ -344,14 +331,17 @@ int bring_tofg(parse_output* p) {
 		printf("bringfg: child status is background\n");
 		int setgrp = tcsetpgrp(mysh_fd, job->gpid);
 		if(setgrp == SUCCESS) {
+		  printf("tobg: setting terminal control\n");
 			int setattr = tcsetattr(mysh_fd, TCSADRAIN, &(job->jmode));
 			if(setattr == SUCCESS) {
-				int stat;
+			  
+			  printf("tobg: setting terminal control success\n");
+			  int stat;
 				int oldpid = job->pid;
 				int oldgid = job->gpid;
 				char* oldinput = (char*)malloc(sizeof(char) * (strlen(job->original_input) + 1));
 				sprintf(oldinput, "%-*s", (int)strlen(job->original_input), job->original_input);
-
+				
 				sigprocmask(SIG_BLOCK, &sset, NULL);
 				dlist_remove_bypid(sus_bg_jobs, oldpid);
 				sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -387,19 +377,26 @@ int kill_process(parse_output* p) {
 	int is_sigkill = 3;
 	int is_sigterm = 2;
 	int flag_index = 1;
-
+	sigset_t sset;
+	sigaddset(&sset, SIGCHLD);
+	for(int i = 0; i < p->num; i++) {
+	  printf("kill: %d. %s\n", i, p->tasks[i]); 
+	}
 	if(p->num == no_arg) {
+	  printf("kill: no_ard\n");
 		printf("kill: usage: kill -flag(optional) job_index(integer)\n");
 		return TRUE;
 	} else {
 		int sigkill = (strcmp(p->tasks[flag_index], "-9") == 0);
 		if(sigkill) {
 			if(p->num != is_sigkill) {
+			  printf("kill: is_sigkill wrong syntax in -9\n");
 				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
 				return TRUE;
 			}
 		} else {
 			if(p->num != is_sigterm) {
+			  printf("kill: is_sigterm wrong tasks->num\n");
 				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
 				return TRUE;
 			}
@@ -411,6 +408,7 @@ int kill_process(parse_output* p) {
 		} else {
 			int job_index = to_int(p->tasks[indexnum]);
 			if(job_index == FALSE) {
+			  printf("kill: job index wrong format\n");
 				printf("kill: usage: kill -flag(optional) job_index(integer)\n");
 				return TRUE;
 			} else {
@@ -420,9 +418,15 @@ int kill_process(parse_output* p) {
 					return TRUE;
 				} else {
 					int kill_signal = sigkill ? SIGKILL : SIGTERM;
+					printf("kill: the signal is %d\n", kill_signal == SIGTERM);
 					int kill_result = kill(job->gpid, kill_signal);
 					if(kill_result != 0) {
 						printf("kill: SIGKILL terminates process group with index %d failed\n", job_index);
+					} else {
+					  	sigprocmask(SIG_BLOCK, &sset, NULL);
+						dlist_remove_bypid(sus_bg_jobs, job->gpid);
+						sigprocmask(SIG_UNBLOCK, &sset, NULL);
+			
 					}
 					return TRUE;
 				}
@@ -436,6 +440,14 @@ int kill_process(parse_output* p) {
 int execute_bg(char* task) {
   int result = TRUE;
   parse_output* p = parse_input(task, " ");
+  struct termios term;
+  sigset_t sset;
+  sigaddset(&sset, SIGCHLD);
+  job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, NOTKNOWN, NOTKNOWN, task, NULL, NULL);
+  sigprocmask(SIG_BLOCK, &sset, NULL);
+  dlist_push_end(sus_bg_jobs, newjob);
+  sigprocmask(SIG_UNBLOCK, &sset, NULL);
+	
 	if(p->num == 0) {
 		printf("Invalid Input\n");
 		return TRUE;
@@ -479,16 +491,14 @@ int execute_bg(char* task) {
 				// free p;
 				result = TRUE;
 			}
-			return result;
+			//			return result;
 			exit(0);
 		} else if (pid > 0) {
-			int stat;
-			sigset_t sset;
-			sigaddset(&sset, SIGCHLD);
-			job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, pid, NOTKNOWN, task, NULL, NULL);
+		  int stat;
+		  tcgetattr(mysh_fd, &term);
+ 			sigprocmask(SIG_BLOCK, &sset, NULL);
 			newjob->gpid = getpgid(pid);
-			sigprocmask(SIG_BLOCK, &sset, NULL);
-			dlist_push_end(sus_bg_jobs, newjob);
+			newjob->jmode = term;
 			sigprocmask(SIG_UNBLOCK, &sset, NULL);
 			waitpid(pid, &stat, WNOHANG);
 		}
@@ -501,7 +511,8 @@ int execute_bg(char* task) {
 
 
 int execute_fg(char* task) {
-	int result = TRUE;
+  int result = TRUE;
+  //tcgetattr(mysh_fd, &mysh);
   parse_output* p = parse_input(task, " ");
 	if(p->num == 0) {
 		printf("Invalid Input\n");
@@ -548,14 +559,14 @@ int execute_fg(char* task) {
 				// free p;
 				result = TRUE;
 			}
-			return result;
+			//		return result;
 			//need free(p)
 			exit(0);
 		} else if (pid > 0) {
 			int stat;
 			sigset_t sset;
 			sigaddset(&sset, SIGCHLD);
-			tcsetpgrp(mysh_fd, getpgid(pid));
+			//tcsetpgrp(mysh_fd, getpgid(pid));
 			waitpid(pid, &stat, WUNTRACED);
 			printf("in patent\n");
 			if(WIFSTOPPED(stat)){
@@ -568,7 +579,7 @@ int execute_fg(char* task) {
 				dlist_push_end(sus_bg_jobs, newjob);
 				sigprocmask(SIG_UNBLOCK, &sset, NULL);
 			}
-			tcsetpgrp(mysh_fd, getpgid(getpid()));
+			tcsetpgrp(mysh_fd, shell_gpid);
 			tcsetattr(mysh_fd, TCSADRAIN, &mysh);
 		}
 }
@@ -631,7 +642,6 @@ int main(int argc, char* argv[]){
 		char* input = read_input();
 		printf("1a\n");
 		parse_output* newline = parse_input(input, "\n");
-		printf("input is %s||||||", input);
 		if(newline->num == 1) {
 			run = TRUE;
 			// free newline
