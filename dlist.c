@@ -167,7 +167,7 @@ void dlist_remove(dlist l, int n){
 }
 
 int dlist_remove_bypid(dlist l, pid_t pid) {
-  if(l == NULL) {
+  if(l->size == 0) {
     return FALSE;
   }
   job_node* t = l->head;
@@ -184,6 +184,7 @@ int dlist_remove_bypid(dlist l, pid_t pid) {
         l->head = NULL;
         l->tail = NULL;
         l->size = 0;
+        return TRUE;
       } else if(tprev == NULL) {
         tnext->prev = NULL;
         l->head = tnext;
