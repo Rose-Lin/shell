@@ -25,7 +25,7 @@
 #define BUFSIZE 20
 #define NOTKNOWN -1
 #define SUCCESS 0
-#define FAILURE 1
+#define FAILURE -1
 #define TOBG "bg"
 #define TOFG "fg"
 #define KILL "kill"
@@ -320,11 +320,11 @@ int bring_tofg(parse_output* p) {
 
 	if (job->status == suspended) {
 
-		int killresult = kill(job->gpid, SIGCONT);
-		if(killresult == 0) {
+		if(kill(job->gpid, SIGCONT) == 0) {
 			sigprocmask(SIG_BLOCK, &sset, NULL);
 			job->status = background;
 			sigprocmask(SIG_UNBLOCK, &sset, NULL);
+			tcsetattr(mysh_fd, &job->jmode);
 		}
 	}
 	if(job->status == background) {
@@ -417,10 +417,8 @@ int kill_process(parse_output* p) {
 					printf("kill: no such job");
 					return TRUE;
 				} else {
-					int kill_signal = sigkill ? SIGKILL : SIGTERM;
 					printf("kill: the signal is %d\n", kill_signal == SIGTERM);
-					int kill_result = kill(job->gpid, kill_signal);
-					if(kill_result != 0) {
+					if(kill(job->gpid, sigkill ? SIGKILL : SIGTERM) == FAILURE) {
 						printf("kill: SIGKILL terminates process group with index %d failed\n", job_index);
 					} else {
 					  	sigprocmask(SIG_BLOCK, &sset, NULL);
@@ -512,7 +510,6 @@ int execute_bg(char* task) {
 
 int execute_fg(char* task) {
   int result = TRUE;
-  //tcgetattr(mysh_fd, &mysh);
   parse_output* p = parse_input(task, " ");
 	if(p->num == 0) {
 		printf("Invalid Input\n");
