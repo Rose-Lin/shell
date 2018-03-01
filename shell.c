@@ -95,7 +95,7 @@ enum flags{ fg_to_sus,
 			return;
 		} else if (status == CLD_CONTINUED) {
 			printf("sighandler: child continued\n");
-			update_list(childpid, bg_to_fg);
+			//update_list(childpid, bg_to_fg);
 			return;
 		} else if (status == CLD_TRAPPED) {
 			printf("child %d got trapped\n", childpid);
@@ -423,6 +423,7 @@ enum flags{ fg_to_sus,
 						return TRUE;
 					} else {
 						if(job->status == suspended) {
+							printf("kill: child suspended\n");
 							if(kill(job->gpid, SIGCONT) == FAILURE) {
 								perror("Continue job failed: ");
 							}
@@ -430,7 +431,7 @@ enum flags{ fg_to_sus,
 
 						printf("kill process %d is sending signals\n", job->gpid);
 						if(kill(job->gpid, sigkill ? SIGKILL : SIGTERM) == FAILURE) {
-							printf("kill: SIGKILL terminates process group with index %d failed\n", job_index);
+							perror("kill: sending signal: ");
 						} else {
 							//sigprocmask(SIG_BLOCK, &sset, NULL);
 							//dlist_remove_bypid(sus_bg_jobs, job->gpid);
@@ -698,7 +699,6 @@ enum flags{ fg_to_sus,
 			}
 
 			int jobnum = jobs->num - symbolnum;
-			//char* job = NULL;
 			int job = 0;
 			for(int i = 0; i < jobs->num; i++) {
 				printf("current index %d  has char  %s   jobnum is %d  \n", i, jobs->tasks[i], jobnum);
@@ -706,10 +706,6 @@ enum flags{ fg_to_sus,
 					job = i;
 					break;
 				}
-				/*job = jobs->tasks[i];
-				if(job != NULL) {
-					break;
-				}*/
 			}
 			for(int i = job; i < jobnum; i ++) {
 				printf("Main: in smalljob current job to be parsed is %s\n", jobs->tasks[job]);
