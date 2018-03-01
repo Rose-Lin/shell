@@ -7,3 +7,5 @@ typedef struct parse_output{
 }parse_output;
 
 parse_output* parse_input(char* input, char* delim);
+
+void free_parse_output(parse_output*);
