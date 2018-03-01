@@ -91,6 +91,7 @@ enum flags{ fg_to_sus,
 		sigset_t shellmask;
 		struct sigaction sa;
 
+		sigemptyset(&shellmask);
 		sigaddset(&shellmask, SIGINT);
 		sigaddset(&shellmask, SIGTERM);
 		sigaddset(&shellmask, SIGTTOU);
@@ -112,6 +113,7 @@ enum flags{ fg_to_sus,
 	*/
 	int update_list(pid_t pid, int flag) {
 		sigset_t sset;
+		sigemptyset(&sset);
 		sigaddset(&sset, SIGCHLD);
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 
@@ -204,6 +206,7 @@ enum flags{ fg_to_sus,
 	*/
 	int bring_tobg(parse_output* p) {
 		sigset_t sset;
+		sigemptyset(&sset);
 		sigaddset(&sset, SIGCHLD);
 		int result = TRUE;
 		int no_arg = 1;
@@ -270,6 +273,7 @@ enum flags{ fg_to_sus,
 	*/
 	int bring_tofg(parse_output* p) {
 		sigset_t sset;
+		sigemptyset(&sset);
 		sigaddset(&sset, SIGCHLD);
 		int result = TRUE;
 		int no_arg = 1;
@@ -356,6 +360,7 @@ enum flags{ fg_to_sus,
 		int is_sigterm = 2;
 		int flag_index = 1;
 		sigset_t sset;
+		sigemptyset(&sset);
 		job_node* job;
 
 		sigaddset(&sset, SIGCHLD);
@@ -416,6 +421,7 @@ enum flags{ fg_to_sus,
 		sigset_t sset;
 
 		job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, background, NOTKNOWN, NOTKNOWN, task, NULL, NULL);
+		sigemptyset(&sset);
 		sigaddset(&sset, SIGCHLD);
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 		dlist_push_end(sus_bg_jobs, newjob);
@@ -498,7 +504,11 @@ enum flags{ fg_to_sus,
 		int result = TRUE;
 		struct termios jterm;
 		parse_output* p = parse_input(task, " ");
-
+		int stat;
+		sigset_t sset;
+		sigemptyset(&sset);
+		sigaddset(&sset, SIGCHLD);
+		
 		if(p->num == 0) {
 			printf("Invalid Input\n");
 			//free_parse_output(p);
@@ -559,9 +569,6 @@ enum flags{ fg_to_sus,
 					//free_parse_output(p);
 					return TRUE;
 				}
-				int stat;
-				sigset_t sset;
-				sigaddset(&sset, SIGCHLD);
 				if(tcsetpgrp(mysh_fd, getpgid(pid)) != SUCCESS) {
 					perror("Setting child process to foreground failed\n");
 					//free_parse_output(p);

@@ -5,11 +5,11 @@
 
 tokenizer* init_tokenizer(char* str, char* delim){
   tokenizer* t = malloc(sizeof(tokenizer));
-  t->str = malloc(sizeof(char) * strlen(str));
-  strncpy(t->str, str, strlen(str));
+  t->str = malloc(sizeof(char) * (strlen(str) + 1));
+  strcpy(t->str, str);
   t->pos = str;
-  t->delim = malloc(sizeof(char) * strlen(delim));
-  strncpy(t->delim, delim, strlen(delim));
+  t->delim = malloc(sizeof(char) * (strlen(delim) + 1));
+  strcpy(t->delim, delim);
   return t;
 }
 
