@@ -37,14 +37,16 @@ job_node* get_tail(dlist dl) {
 
 
 void dlist_push_end(dlist l, job_node* n){
-  if (l->tail){
+  if(l->size == 0) {
+    l->head = n;
+    l->tail = n;
+    n->prev = NULL;
+    n->next = NULL;
+  } else {
     job_node* old_tail = l->tail;
     old_tail->next = n;
     n->prev = old_tail;
     n->next = NULL;
-    l->tail = n;
-  }else{
-    l->head = n;
     l->tail = n;
   }
   l->size++;
@@ -133,6 +135,8 @@ int dlist_remove_bypid(dlist l, pid_t pid) {
         l->head = NULL;
         l->tail = NULL;
         l->size = 0;
+        free(t->original_input);
+        free(t);
         return TRUE;
       } else if(tprev == NULL) {
         tnext->prev = NULL;

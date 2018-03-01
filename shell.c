@@ -73,6 +73,7 @@ void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
     update_list(childpid, terminated);
     return;
   } else if (status == CLD_STOPPED) {
+		printf("child stopped\n");
     update_list(childpid, fg_to_sus);
     return;
   } else if (status == CLD_CONTINUED) {
@@ -518,7 +519,7 @@ int execute_fg(char* task) {
   sigset_t sset;
   sigemptyset(&sset);
   sigaddset(&sset, SIGCHLD);
-		
+
   if(p->num == 0) {
     //printf("Invalid Input\n");
     free_parse_output(p);
@@ -565,7 +566,7 @@ int execute_fg(char* task) {
 
       if(execvp(p->tasks[0], p->tasks) < 0) {
 	perror("Execution error ");
-	result = TRUE;	
+	result = TRUE;
 	free_parse_output(p);
 	exit(SUCCESS);
       }
