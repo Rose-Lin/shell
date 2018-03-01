@@ -224,8 +224,6 @@ enum flags{ fg_to_sus,
 		job_node* job;
 
 		if(p->num == no_arg) { // when bg has no argument
-			// job_index = 1;
-			// job = dlist_get(sus_bg_jobs, job_index);
 			job = get_tail(sus_bg_jobs);
 			if(job != NULL) {
 				if(job->status == suspended) {
@@ -287,8 +285,6 @@ enum flags{ fg_to_sus,
 		job_node* job;
 
 		if(p->num == no_arg) { // when bg has no argument
-			// toint = 1;
-			// job = dlist_get(sus_bg_jobs, toint);
 			job = get_tail(sus_bg_jobs);
 		} else {
 			for(int i = 1; i < p->num; i++) {
@@ -494,7 +490,6 @@ enum flags{ fg_to_sus,
 				waitpid(pid, &stat, WNOHANG);
 				tcsetpgrp(mysh_fd, getpgid(getpid()));
 				tcsetattr(mysh_fd, TCSADRAIN, &mysh);
-				//free_parse_output(p);
 			}
 		}
 		free_parse_output(p);
@@ -516,7 +511,6 @@ enum flags{ fg_to_sus,
 		sigaddset(&sset, SIGCHLD);
 
 		if(p->num == 0) {
-			//printf("Invalid Input\n");
 			free_parse_output(p);
 			result = TRUE;
 			return result;
