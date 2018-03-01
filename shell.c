@@ -308,13 +308,7 @@ int bring_tofg(parse_output* p) {
   }
 
   if (job->status == suspended) {
-    if(kill(job->gpid, SIGCONT) == 0) {
-      /*
-	sigprocmask(SIG_BLOCK, &sset, NULL);
-      job->status = background;
-      sigprocmask(SIG_UNBLOCK, &sset, NULL);
-      */
-    } else {
+    if(kill(job->gpid, SIGCONT) != 0) {
       perror("Failed to send signal: ");
       return TRUE;
     }
@@ -324,6 +318,7 @@ int bring_tofg(parse_output* p) {
     perror("bringfg: set process to fg failed: ");
     return TRUE;
   }
+
   if(tcsetattr(mysh_fd, TCSADRAIN, &job->jmode) != FAILURE) {
     int stat;
     int oldpid = job->pid;
@@ -617,21 +612,6 @@ void free_joblists() {
   dlist_free(sus_bg_jobs);
 }
 
-/*
-  void free_parser(parse_output* po) {
-  if(po != NULL) {
-  if(po->num > 0) {
-  int index = 0;
-  for(int i = 0; i < po->num; i++) {
-  free(po->tasks[index]);
-  }
-  }
-  free(po->tasks);
-  }
-  free(po);
-  }
-*/
-
 /* =========================== useful function =========================== */
 /*
   - convert a string of ints to integer
@@ -686,7 +666,6 @@ int main(int argc, char* argv[]){
     parse_output* jobs = parse_input(newline->tasks[0], ";");
     if(jobs->num == 1 && strcmp(newline->tasks[0], ";") == 0) {
       run = TRUE;
-      //printf("Invalid input\n");
       free_parse_output(jobs);
       free_parse_output(newline);
       continue;
