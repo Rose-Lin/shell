@@ -52,13 +52,16 @@ enum flags{ fg_to_sus,
 	int mysh_fd = STDIN_FILENO;
 
 
-	/* ======================= Initializing Jobs ============================ */
+	/* ======================= Initializing Job List ============================ */
 	void init_joblists() {
 		sus_bg_jobs = dlist_new();
 	}
 
-
 	/* ========================== Handle Signals ============================== */
+
+	/*
+		Signal handler for SIGCHLD
+	*/
 	void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
 		pid_t childpid = sg->si_pid;
 		int status = sg->si_code;
@@ -81,6 +84,9 @@ enum flags{ fg_to_sus,
 		return;
 	}
 
+	/*
+		set up signal mask and register signal handler
+	*/
 	int set_up_signals() {
 		sigset_t shellmask;
 		struct sigaction sa;
@@ -101,6 +107,9 @@ enum flags{ fg_to_sus,
 
 
 	/* ============================= update list ============================ */
+	/*
+		update background and stopped job list
+	*/
 	int update_list(pid_t pid, int flag) {
 		sigset_t sset;
 		sigaddset(&sset, SIGCHLD);
@@ -140,7 +149,9 @@ enum flags{ fg_to_sus,
 	}
 
 	/* =============================== read in ==================================== */
-	// read in the input and add one jobnode(with original input)
+	/*
+		read in the input and add one jobnode(with original input)
+	*/
 	char* read_input() {
 		size_t readn;
 		char* input = NULL;
@@ -155,6 +166,9 @@ enum flags{ fg_to_sus,
 	}
 
 	/* ========================= for "jobs" command ========================= */
+	/*
+		execute "jobs" command
+	*/
 	void print_jobs(dlist jobs) {
 		int length = 15;
 		job_node* top = get_head(jobs);
@@ -185,7 +199,9 @@ enum flags{ fg_to_sus,
 
 
 	/* ============================== bring to fg, bg, and kill =============================== */
-
+	/*
+		bringing a process to background
+	*/
 	int bring_tobg(parse_output* p) {
 		sigset_t sset;
 		sigaddset(&sset, SIGCHLD);
@@ -247,7 +263,11 @@ enum flags{ fg_to_sus,
 		return result;
 	}
 
-
+	/*
+		- execute 'fg %<#>' commands
+		- bring a process to foreground
+		- if the process bringing to foreground is stopped, a SIGCONT is sent
+	*/
 	int bring_tofg(parse_output* p) {
 		sigset_t sset;
 		sigaddset(&sset, SIGCHLD);
@@ -324,6 +344,12 @@ enum flags{ fg_to_sus,
 		return result;
 	}
 
+
+	/*
+		- command 'kill' for killing Process
+		- does not allow user input job index without '%'
+		- "-9" flag for sending SIGKILL
+	*/
 	int kill_process(parse_output* p) {
 		int no_arg = 1;
 		int is_sigkill = 3;
@@ -381,6 +407,9 @@ enum flags{ fg_to_sus,
 	}
 
 	/* ============================== executions =============================== */
+	/*
+		launch a process in background
+	*/
 	int execute_bg(char* task) {
 		int result = TRUE;
 		struct termios term;
@@ -395,6 +424,7 @@ enum flags{ fg_to_sus,
 
 		if(p->num == 0) {
 			printf("Invalid Input\n");
+			//free_parse_output(p);
 			return TRUE;
 		}
 		if(strcmp(p->tasks[0], JOBS) == 0) {
@@ -407,19 +437,25 @@ enum flags{ fg_to_sus,
 		} else if (strcmp(p->tasks[0], KILL) == 0) {
 			kill_process(p);
 		} else if(strcmp(p->tasks[0], EXIT) == 0) {
-			// need to free p
+			//free_parse_output(p);
 			result = FALSE;
+			return result;
 		}else {
 
 			pid_t pid = fork();
 			if(pid < 0) {
 				perror("Fork failed: ");
-				return TRUE;
+				//free_parse_output(p);
+				result = TRUE;
+				return result;
 			} else if (pid == 0) {
 				// in child
 				pid_t chpid = getpid();
 				if(setpgid(chpid, chpid) < 0 ) {
 					perror("Set child gid failed: ");
+					//free_parse_output(p);
+					result = TRUE;
+					exit(SUCCESS);
 				}
 
 				signal (SIGINT, SIG_DFL);
@@ -429,13 +465,12 @@ enum flags{ fg_to_sus,
 				signal (SIGTTOU, SIG_DFL);
 				signal (SIGTERM, SIG_DFL);
 
-				//need free(p)
 				if(execvp(p->tasks[0], p->tasks) < 0) {
 					perror("Execution error ");
-					// free p;
+					//free_parse_output(p);
 					result = TRUE;
 				}
-				exit(0);
+				exit(SUCCESS);
 			} else if(pid > 0){
 				int stat;
 				setpgid(pid, pid);
@@ -449,13 +484,16 @@ enum flags{ fg_to_sus,
 				waitpid(pid, &stat, WNOHANG);
 				tcsetpgrp(mysh_fd, getpgid(getpid()));
 				tcsetattr(mysh_fd, TCSADRAIN, &mysh);
+				//free_parse_output(p);
 			}
 		}
 		return result;
 	}
 
 
-
+	/*
+		launch a process in foreground
+	*/
 	int execute_fg(char* task) {
 		int result = TRUE;
 		struct termios jterm;
@@ -463,7 +501,9 @@ enum flags{ fg_to_sus,
 
 		if(p->num == 0) {
 			printf("Invalid Input\n");
-			return TRUE;
+			//free_parse_output(p);
+			result = TRUE;
+			return result;
 		}
 
 		if(strcmp(p->tasks[0], JOBS) == 0) {
@@ -477,18 +517,23 @@ enum flags{ fg_to_sus,
 		} else if (strcmp(p->tasks[0], KILL) == 0) {
 			kill_process(p);
 		} else if(strcmp(p->tasks[0], EXIT) == 0) {
-			// need to free p
+			//free_parse_output(p);
 			result = FALSE;
+			return result;
 		}else {
 			pid_t pid = fork();
 			if(pid < 0) {
 				perror("Fork failed: ");
-				return TRUE;
+				//free_parse_output(p);
+				result = TRUE;
+				return result;
 			} else if (pid == 0) {
-				// in child
 				pid_t chpid = getpid();
 				if(setpgid(chpid, chpid) < 0 ) {
 					perror("Set child gid failed: ");
+					//free_parse_output(p);
+					result = TRUE;
+					exit(SUCCESS);
 				}
 
 				signal (SIGINT, SIG_DFL);
@@ -502,19 +547,24 @@ enum flags{ fg_to_sus,
 					perror("Execution error ");
 					result = TRUE;
 				}
-
-				exit(0);
+				//free_parse_output(p);
+				exit(SUCCESS);
 			} else if (pid > 0) {
 				if(setpgid(getpid(), getpid()) < 0) {
 					perror("Parent: Set parent gid in parent failed: ");
+					//free_parse_output(p);
+					return TRUE;
 				} else if(setpgid(pid, pid) < 0) {
 					perror("Parent: set child gid in parent failed: ");
+					//free_parse_output(p);
+					return TRUE;
 				}
 				int stat;
 				sigset_t sset;
 				sigaddset(&sset, SIGCHLD);
 				if(tcsetpgrp(mysh_fd, getpgid(pid)) != SUCCESS) {
 					perror("Setting child process to foreground failed\n");
+					//free_parse_output(p);
 					return TRUE;
 				}
 
@@ -529,21 +579,26 @@ enum flags{ fg_to_sus,
 				}
 				if(tcsetpgrp(mysh_fd, shell_gpid) == FAILURE) {
 					perror("Setting shell back to foreground: ");
+					//free_parse_output(p);
+					return TRUE;
 				}
 				if(tcsetattr(mysh_fd, TCSADRAIN, &mysh) == FAILURE) {
 					perror("Giving terminal control back to shell: ");
+					///free_parse_output(p);
+					return TRUE;
 				}
 			}
-			//free(p);
+			//free_parse_output(p);
 		}
 		return result;
 	}
 
-	/* ============================ clean up stuff ============================= */
+	/* ============================ Free Memory ============================= */
 	void free_joblists() {
 		dlist_free(sus_bg_jobs);
 	}
 
+/*
 	void free_parser(parse_output* po) {
 		if(po != NULL) {
 			if(po->num > 0) {
@@ -556,9 +611,14 @@ enum flags{ fg_to_sus,
 		}
 		free(po);
 	}
+*/
 
 	/* =========================== useful function =========================== */
-
+	/*
+		- convert a string of ints to integer
+		- allows non-digit chars inside the string, will extract the number and calculate the integer
+		- for instance: "#1#2#2" converts to 122
+	*/
 	int to_int(char* str) {
 		int len = strlen(str);
 		int result = FALSE;
@@ -571,6 +631,7 @@ enum flags{ fg_to_sus,
 		return result;
 	}
 
+/* ================================ MAIN ============================= */
 	int main(int argc, char* argv[]){
 		// sets up
 		set_up_signals();
@@ -599,15 +660,15 @@ enum flags{ fg_to_sus,
 			parse_output* newline = parse_input(input, "\n");
 			if(newline->num == 1) {
 				run = TRUE;
-				// free newline
+				//free_parse_output(newline);
 				continue;
 			}
 			parse_output* jobs = parse_input(newline->tasks[0], ";");
 			if(jobs->num == 1 && strcmp(newline->tasks[0], ";") == 0) {
 				run = TRUE;
 				printf("Invalid input\n");
-				// free jobs
-				// free newline
+				//free_parse_output(jobs);
+				//free_parse_output(newline);
 				continue;
 			}
 			int symbolnum = 0;
@@ -639,11 +700,12 @@ enum flags{ fg_to_sus,
 						continue;
 					}
 				}
-				// free smalljob
 				job += 2;
+				////free_parse_output(smalljob);
 			}
-			// need to free newline, jobs
+			//free_parse_output(jobs);
+			//free_parse_output(newline);
 			free(input);
 		} while (run);
-		// clean up everything
+		free_joblists();
 	}

@@ -105,10 +105,10 @@ job_node* jobnode_deepcopy(job_node* n){
 void free_joblist(job_node* head){
   job_node* l = head;
   while(l){
-    head = l;
+    job_node* temp = l;
     free(l->original_input);
     l = l->next;
-    free(head);
+    free(temp);
   }
 }
 

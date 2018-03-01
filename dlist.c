@@ -156,6 +156,11 @@ job_node* dlist_get_bypid(dlist l, pid_t pid){
 }
 
 void dlist_free(dlist l){
+  if(l == NULL) {
+    return;
+  } else if(l->size == 0) {
+    free(l);
+  }
   free_joblist(l->head);
   free(l);
 }
