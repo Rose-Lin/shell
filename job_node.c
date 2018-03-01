@@ -55,20 +55,6 @@ void delete_node(job_node* n) {
   free(n);
 }
 
-/*
-void delete_node(job_node* n){
-  if(n->prev && n->next){
-    n->prev->next = n->next;
-    n->next->prev = n->prev;
-  }else if(n->prev){
-    n->prev->next = NULL;
-  }else if(n->next){
-    n->next->prev = NULL;
-  }
-  free(n);
-}
-*/
-
 job_node* get_jobnode_bypid(job_node* head, pid_t pid){
   job_node* p = head;
   if (p){
@@ -125,31 +111,6 @@ void free_joblist(job_node* head){
     free(head);
   }
 }
-
-// job_node* from_array(int n, int a[n]){
-//   if(n==0){
-//     return NULL;
-//   }
-//   job_node* head = new_node(a[0],NULL,NULL);
-//   job_node* temp = head;
-//   for(int i=1;i<n;i++){
-//     insert_after(temp,a[i]);
-//     temp = temp->next;
-//   }
-//   return head;
-// }
-
-// int to_array(job_node* head, int n, int a[n]){
-//   job_node* num = head;
-//   int i=0;
-//   for(; i<n; num=num->next){
-//     if(num){
-//       a[i] = num->index;
-//       i++;
-//     }
-//   }
-//   return i;
-// }
 
 int length(job_node* head){
   job_node* n = head;
