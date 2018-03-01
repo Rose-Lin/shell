@@ -76,6 +76,7 @@ void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
     update_list(childpid, fg_to_sus);
     return;
   } else if (status == CLD_CONTINUED) {
+    update_list(childpid, sus_to_bg);
     return;
   } else if (status == CLD_TRAPPED) {
     return;
@@ -147,6 +148,16 @@ int update_list(pid_t pid, int flag) {
     return TRUE;
   }
 
+  if(flag == sus_to_bg) {
+    job_node* find = dlist_get_bypid(sus_bg_jobs, pid);
+    if(find == NULL) {
+      sigprocmask(SIG_UNBLOCK, &sset, NULL);
+      return FALSE;
+    }
+    find->status = background;
+    sigprocmask(SIG_UNBLOCK, &sset, NULL);
+    return TRUE;
+  }
   return TRUE;
 }
 
@@ -243,12 +254,7 @@ int bring_tobg(parse_output* p) {
 	if(job != NULL) {
 	  if(job->status == suspended) {
 	    int killresult = kill(job->gpid, SIGCONT);
-	    if(killresult == 0) {
-	      sigprocmask(SIG_BLOCK, &sset, NULL);
-	      job->status = background;
-	      sigprocmask(SIG_UNBLOCK, &sset, NULL);
-	      result = TRUE;
-	    } else {
+	    if(killresult != 0) {
 	      perror("Sending SIGCONT in bring to background: ");
 	    }
 	  } else if(job->status == background) {
@@ -304,9 +310,11 @@ int bring_tofg(parse_output* p) {
 
   if (job->status == suspended) {
     if(kill(job->gpid, SIGCONT) == 0) {
-      sigprocmask(SIG_BLOCK, &sset, NULL);
+      /*
+	sigprocmask(SIG_BLOCK, &sset, NULL);
       job->status = background;
       sigprocmask(SIG_UNBLOCK, &sset, NULL);
+      */
     } else {
       perror("Failed to send signal: ");
       return TRUE;
@@ -320,7 +328,9 @@ int bring_tofg(parse_output* p) {
   if(tcsetattr(mysh_fd, TCSADRAIN, &job->jmode) != FAILURE) {
     int stat;
     int oldpid = job->pid;
-    int oldindex = job->index;
+    int oldgid = job->gpid;
+    char* oldinput = (char*)malloc(sizeof(char) * (strlen(job->original_input) + 1));
+    strcpy(oldinput, job->original_input);
     sigprocmask(SIG_BLOCK, &sset, NULL);
     dlist_remove_bypid(sus_bg_jobs, oldpid);
     sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -329,13 +339,15 @@ int bring_tofg(parse_output* p) {
       struct termios childt;
       tcgetattr(STDOUT_FILENO, &childt);
       sigprocmask(SIG_BLOCK, &sset, NULL);
-      job_node* newjob = dlist_get(sus_bg_jobs, oldindex);
-      newjob->status = suspended;
+      job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, suspended, oldpid, oldgid, oldinput, NULL, NULL);
+      dlist_push_end(sus_bg_jobs, newjob);
       sigprocmask(SIG_UNBLOCK, &sset, NULL);
+      free(oldinput);
+    } else {
+      free(oldinput);
     }
     tcsetpgrp(mysh_fd, shell_gpid);
     tcsetattr(mysh_fd, TCSADRAIN, &mysh);
-
   } else {
     perror("Setting process to foreground: ");
   }
