@@ -111,9 +111,9 @@ parse_output* parse_input(char* input, char* delim){
 }
 
 void free_parse_output(parse_output* p){
-  char** ptask = p->tasks;
   for(int i=0; i<p->num; i++){
-    free(ptask[i]);
+    free(p->tasks[i]);
   }
+  free(p->tasks);
   free(p);
 }

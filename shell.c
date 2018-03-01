@@ -430,7 +430,7 @@ int execute_bg(char* task) {
 
   if(p->num == 0) {
     printf("Invalid Input\n");
-    //free_parse_output(p);
+    free_parse_output(p);
     return TRUE;
   }
   if(strcmp(p->tasks[0], JOBS) == 0) {
@@ -443,7 +443,7 @@ int execute_bg(char* task) {
   } else if (strcmp(p->tasks[0], KILL) == 0) {
     kill_process(p);
   } else if(strcmp(p->tasks[0], EXIT) == 0) {
-    //free_parse_output(p);
+    free_parse_output(p);
     result = FALSE;
     return result;
   }else {
@@ -451,7 +451,7 @@ int execute_bg(char* task) {
     pid_t pid = fork();
     if(pid < 0) {
       perror("Fork failed: ");
-      //free_parse_output(p);
+      free_parse_output(p);
       result = TRUE;
       return result;
     } else if (pid == 0) {
@@ -459,7 +459,7 @@ int execute_bg(char* task) {
       pid_t chpid = getpid();
       if(setpgid(chpid, chpid) < 0 ) {
 	perror("Set child gid failed: ");
-	//free_parse_output(p);
+	free_parse_output(p);
 	result = TRUE;
 	exit(SUCCESS);
       }
@@ -473,9 +473,11 @@ int execute_bg(char* task) {
 
       if(execvp(p->tasks[0], p->tasks) < 0) {
 	perror("Execution error ");
-	//free_parse_output(p);
 	result = TRUE;
+	free_parse_output(p);
+	exit(SUCCESS);
       }
+      free_parse_output(p);
       exit(SUCCESS);
     } else if(pid > 0){
       int stat;
@@ -493,6 +495,7 @@ int execute_bg(char* task) {
       //free_parse_output(p);
     }
   }
+  free_parse_output(p);
   return result;
 }
 
@@ -528,21 +531,21 @@ int execute_fg(char* task) {
   } else if (strcmp(p->tasks[0], KILL) == 0) {
     kill_process(p);
  } else if(strcmp((char*)p->tasks[0], EXIT) == 0) {
-    //free_parse_output(p);
+    free_parse_output(p);
     result = FALSE;
     return result;
   }else {
     pid_t pid = fork();
     if(pid < 0) {
       perror("Fork failed: ");
-      //free_parse_output(p);
+      free_parse_output(p);
       result = TRUE;
       return result;
     } else if (pid == 0) {
       pid_t chpid = getpid();
       if(setpgid(chpid, chpid) < 0 ) {
 	perror("Set child gid failed: ");
-	//free_parse_output(p);
+	free_parse_output(p);
 	result = TRUE;
 	exit(SUCCESS);
       }
@@ -556,23 +559,25 @@ int execute_fg(char* task) {
 
       if(execvp(p->tasks[0], p->tasks) < 0) {
 	perror("Execution error ");
-	result = TRUE;
+	result = TRUE;	
+	free_parse_output(p);
+	exit(SUCCESS);
       }
-      //free_parse_output(p);
+      free_parse_output(p);
       exit(SUCCESS);
     } else if (pid > 0) {
       if(setpgid(getpid(), getpid()) < 0) {
 	perror("Parent: Set parent gid in parent failed: ");
-	//free_parse_output(p);
+	free_parse_output(p);
 	return TRUE;
       } else if(setpgid(pid, pid) < 0) {
 	perror("Parent: set child gid in parent failed: ");
-	//free_parse_output(p);
+	free_parse_output(p);
 	return TRUE;
       }
       if(tcsetpgrp(mysh_fd, getpgid(pid)) != SUCCESS) {
 	perror("Setting child process to foreground failed\n");
-	//free_parse_output(p);
+	free_parse_output(p);
 	return TRUE;
       }
 
@@ -587,17 +592,18 @@ int execute_fg(char* task) {
       }
       if(tcsetpgrp(mysh_fd, shell_gpid) == FAILURE) {
 	perror("Setting shell back to foreground: ");
-	//free_parse_output(p);
+	free_parse_output(p);
 	return TRUE;
       }
       if(tcsetattr(mysh_fd, TCSADRAIN, &mysh) == FAILURE) {
 	perror("Giving terminal control back to shell: ");
-	///free_parse_output(p);
+	free_parse_output(p);
 	return TRUE;
       }
     }
-    //free_parse_output(p);
+    // free_parse_output(p);
   }
+  free_parse_output(p);
   return result;
 }
 
@@ -668,15 +674,15 @@ int main(int argc, char* argv[]){
     parse_output* newline = parse_input(input, "\n");
     if(newline->num == 1) {
       run = TRUE;
-      //free_parse_output(newline);
+      free_parse_output(newline);
       continue;
     }
     parse_output* jobs = parse_input(newline->tasks[0], ";");
     if(jobs->num == 1 && strcmp(newline->tasks[0], ";") == 0) {
       run = TRUE;
       //printf("Invalid input\n");
-      //free_parse_output(jobs);
-      //free_parse_output(newline);
+      free_parse_output(jobs);
+      free_parse_output(newline);
       continue;
     }
     int symbolnum = 0;
