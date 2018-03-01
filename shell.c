@@ -320,10 +320,7 @@ int bring_tofg(parse_output* p) {
   if(tcsetattr(mysh_fd, TCSADRAIN, &job->jmode) != FAILURE) {
     int stat;
     int oldpid = job->pid;
-    int oldgid = job->gpid;
-    char* oldinput = (char*)malloc(sizeof(char) * (strlen(job->original_input) + 1));
-    sprintf(oldinput, "%-*s", (int)strlen(job->original_input), job->original_input);
-
+    int oldindex = job->index;
     sigprocmask(SIG_BLOCK, &sset, NULL);
     dlist_remove_bypid(sus_bg_jobs, oldpid);
     sigprocmask(SIG_UNBLOCK, &sset, NULL);
@@ -332,12 +329,9 @@ int bring_tofg(parse_output* p) {
       struct termios childt;
       tcgetattr(STDOUT_FILENO, &childt);
       sigprocmask(SIG_BLOCK, &sset, NULL);
-      job_node* newjob = new_node(dlist_size(sus_bg_jobs) + 1, suspended, oldpid, oldgid, oldinput, NULL, NULL);
-      newjob->jmode = childt;
-      dlist_push_end(sus_bg_jobs, newjob);
+      job_node* newjob = dlist_get(sus_bg_jobs, oldindex);
+      newjob->status = suspended;
       sigprocmask(SIG_UNBLOCK, &sset, NULL);
-    } else {
-      free(oldinput);
     }
     tcsetpgrp(mysh_fd, shell_gpid);
     tcsetattr(mysh_fd, TCSADRAIN, &mysh);

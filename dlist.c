@@ -41,6 +41,7 @@ void dlist_push_end(dlist l, job_node* n){
     job_node* old_tail = l->tail;
     old_tail->next = n;
     n->prev = old_tail;
+    n->next = NULL;
     l->tail = n;
   }else{
     l->head = n;
