@@ -73,7 +73,6 @@ void sigchld_handler(int signal, siginfo_t* sg, void* oldact) {
     update_list(childpid, terminated);
     return;
   } else if (status == CLD_STOPPED) {
-		printf("child stopped\n");
     update_list(childpid, fg_to_sus);
     return;
   } else if (status == CLD_CONTINUED) {
@@ -169,7 +168,6 @@ int update_list(pid_t pid, int flag) {
 char* read_input() {
   size_t readn;
   char* input = NULL;
-  printf("mysh > ");
   if(getline(&input, &readn, stdin) < 0) {
     printf("getline from stdin failed! \n");
     free(input);
@@ -673,6 +671,7 @@ int main(int argc, char* argv[]){
   tcgetattr(mysh_fd, &mysh);
 
   do {
+		printf("mysh > ");
     char* input = read_input();
     if (input==NULL){
       run = TRUE;
