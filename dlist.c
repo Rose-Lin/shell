@@ -27,30 +27,6 @@ int dlist_size(dlist l){
   return l->size;
 }
 
-// void dlist_push(dlist l, int elt){
-//   l->head = new_node(elt,l->head,NULL);
-//   if(l->head->next){
-//     insert_before(l->head,elt);
-//   }
-//   l->tail = nth_node(l->head,l->size);
-//   l->size++;
-// }
-
-// int dlist_pop(dlist l){
-//   int element = 0;
-//   job_node* n = l->head;
-//   element = n->data;
-//   l->head = n->next;
-//   delete_node(n);
-//   l->size--;
-//   return element;
-// }
-
-// int dlist_peek(dlist l){
-//   return(l->head->data);
-// }
-
-
 job_node* get_head(dlist dl) {
   return dl->head;
 }
@@ -117,19 +93,6 @@ void dlist_insert(dlist l, int index, job_node* n){
   l->size++;
 }
 
-/*
-job_node* dlist_get(dlist l, int index){
-  job_node* t = l->tail;
-  if(index < (l->size)/2){
-    //traverse from head
-    return nth_job(l->head, index);
-  }else{
-    //traverse from tail
-    return nth_job_prev(t, l->size-index-1);
-  }
-}
-*/
-
 job_node* dlist_get(dlist l, int index) {
   if(l == NULL) {
     return NULL;
@@ -137,25 +100,12 @@ job_node* dlist_get(dlist l, int index) {
   job_node* t = l->head;
   while(t != NULL) {
     if(t->index == index) {
-      printf("in dlist_get: cur input is %s with index %d\n", t->original_input, t->index);
       return t;
     }
     t = t->next;
   }
   return NULL;
 }
-
-// int dlist_set(dlist l, int n, int new_elt){
-//   int old = 0;
-//   if(n <= (l->size)/2){
-//     old =nth_node(l->head,n)->data;
-//     nth_node(l->head,n)->data= new_elt;
-//   }else{
-//     old = nth_node(l->tail,n)->data;
-//     nth_node(l->tail,n)->data = new_elt;
-//   }
-//   return old;
-// }
 
 void dlist_remove(dlist l, int n){
   if(n <= (l->size)/2){
@@ -173,8 +123,6 @@ int dlist_remove_bypid(dlist l, pid_t pid) {
   job_node* t = l->head;
   while(t != NULL) {
     if(t->pid == pid) {
-      printf("in dlist removing node\n");
-      //delete_node(t);
       job_node* tprev = t->prev;
       job_node* tnext = t->next;
       if(tprev != NULL && tnext != NULL) {
@@ -193,7 +141,6 @@ int dlist_remove_bypid(dlist l, pid_t pid) {
         l->tail = tprev;
       }
       l->size--;
-      printf("inside of removing size is %d\n", l->size);
       free(t->original_input);
       free(t);
       return TRUE;
@@ -202,20 +149,6 @@ int dlist_remove_bypid(dlist l, pid_t pid) {
   }
   return FALSE;
 }
-
-/*
-int dlist_remove_bypid(dlist l, pid_t pid){
-  if(l == NULL) {
-    return FALSE;
-  }
-  job_node* n = get_jobnode_bypid(l->head, pid);
-  if(n){
-    delete_node(n);
-    return TRUE;
-  }
-  return FALSE;
-}
-*/
 
 job_node* dlist_get_bypid(dlist l, pid_t pid){
   job_node* h = l->head;
