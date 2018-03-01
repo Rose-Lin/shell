@@ -11,7 +11,7 @@ job_node* new_node(int index, int status, pid_t pid, pid_t gpid, char* original_
   n->status = status;
   n->pid = pid;
   n->gpid = gpid;
-  n->original_input = malloc(sizeof(char) * (strlen(original_input) + 1));
+  n->original_input = (char*)malloc(sizeof(char) * (strlen(original_input) + 1));
   strcpy(n->original_input, original_input);
   n->next = next;
   n->prev = prev;

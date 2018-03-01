@@ -503,20 +503,21 @@ int execute_bg(char* task) {
 int execute_fg(char* task) {
   int result = TRUE;
   struct termios jterm;
-  parse_output* p = parse_input(task, " ");
+  parse_output* p;
+  p = parse_input(task, " ");
   int stat;
   sigset_t sset;
   sigemptyset(&sset);
   sigaddset(&sset, SIGCHLD);
 		
   if(p->num == 0) {
-    printf("Invalid Input\n");
-    //free_parse_output(p);
+    //printf("Invalid Input\n");
+    free_parse_output(p);
     result = TRUE;
     return result;
   }
 
-  if(strcmp(p->tasks[0], JOBS) == 0) {
+  if(strcmp((char*)p->tasks[0], JOBS) == 0) {
     print_jobs(sus_bg_jobs);
     result = TRUE;
   } else if(strcmp(p->tasks[0], TOBG) == 0) {
@@ -526,7 +527,7 @@ int execute_fg(char* task) {
     result = bring_tofg(p);
   } else if (strcmp(p->tasks[0], KILL) == 0) {
     kill_process(p);
-  } else if(strcmp(p->tasks[0], EXIT) == 0) {
+ } else if(strcmp((char*)p->tasks[0], EXIT) == 0) {
     //free_parse_output(p);
     result = FALSE;
     return result;
@@ -673,7 +674,7 @@ int main(int argc, char* argv[]){
     parse_output* jobs = parse_input(newline->tasks[0], ";");
     if(jobs->num == 1 && strcmp(newline->tasks[0], ";") == 0) {
       run = TRUE;
-      printf("Invalid input\n");
+      //printf("Invalid input\n");
       //free_parse_output(jobs);
       //free_parse_output(newline);
       continue;
@@ -708,10 +709,10 @@ int main(int argc, char* argv[]){
 	}
       }
       job += 2;
-      ////free_parse_output(smalljob);
+      free_parse_output(smalljob);
     }
-    //free_parse_output(jobs);
-    //free_parse_output(newline);
+    free_parse_output(jobs);
+    free_parse_output(newline);
     free(input);
   } while (run);
   free_joblists();

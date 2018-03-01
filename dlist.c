@@ -16,7 +16,7 @@ typedef struct dlist_record{
 }dlist_record;
 
 dlist dlist_new(){
-  dlist l = malloc(sizeof(dlist_record));
+  dlist l = (dlist)malloc(sizeof(dlist_record));
   l->head = NULL;
   l->tail = NULL;
   l->size =0;
@@ -160,6 +160,7 @@ void dlist_free(dlist l){
     return;
   } else if(l->size == 0) {
     free(l);
+    return;
   }
   free_joblist(l->head);
   free(l);
