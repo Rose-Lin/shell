@@ -14,13 +14,7 @@ Shell
  - Print job list: "jobs" to pring all the current background and stopped jobs
 
 
-3. How we test the shell
-- Tested invalid input (input that cause execution errors)
-- Tested with multiple jobs (separated by ';' and '&')
-- Tested with background and foreground
-
-
-4. Limitations
+3. Limitations
 - Cannot kill "sleep" process with SIGTERM when sleep is running in background; for instance "sleep 100 &" cannot be killed with "kill %<index_num>", but can be killed with "kill -9 %<index_num>" (SIGKILL)
 - Cannot kill "emacs -nw &" process with SIGTERM when RUNNING IN VALGRIND, but can be killed with "-9" flag (SIGKILL). However when not running in valgrind, "emacs -nw &" can be killed with SIGTERM;
 - Atom by default runs in background, thus running Atom in background, the job list does not contains the atom process.
